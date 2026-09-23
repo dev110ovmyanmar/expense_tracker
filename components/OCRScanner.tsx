@@ -1,0 +1,406 @@
+"use client";
+
+import {
+  Check,
+  FileImage,
+  FileText,
+  Loader2,
+  ScanLine,
+  Upload,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
+import { toast } from "sonner";
+import { ExpenseFields } from "@/components/expense-fields";
+import { useExpenses } from "@/components/expense-provider";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDate, formatMoney } from "@/lib/format";
+import { fileKind, OCR_STEPS, suggestReceipt } from "@/lib/ocr";
+import { getSampleReceipts } from "@/lib/sample-receipts";
+import { draftFromOCR, validateDraft, type FieldErrors } from "@/lib/validate";
+import type { Expense, ExpenseDraft, OCRData } from "@/types/expense";
+
+type Phase = "idle" | "processing" | "review" | "saved";
+type PreviewKind = "image" | "pdf";
+
+const FIELD_ORDER = ["vendor", "date", "amount", "tax", "lineItems", "notes"] as const;
+const MAX_BYTES = 10 * 1024 * 1024;
+
+export function OCRScanner() {
+  const { addExpense, hydrated } = useExpenses();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
+  const previewRef = useRef<string | null>(null);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [step, setStep] = useState(0);
+  const [run, setRun] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewKind, setPreviewKind] = useState<PreviewKind>("image");
+  const [fileName, setFileName] = useState("");
+  const [ocr, setOcr] = useState<OCRData | null>(null);
+  const [draft, setDraft] = useState<ExpenseDraft | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [saved, setSaved] = useState<Expense | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "processing") return;
+    const timers = [
+      window.setTimeout(() => setStep(1), 700),
+      window.setTimeout(() => setStep(2), 1500),
+      window.setTimeout(() => setPhase("review"), 2400),
+    ];
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [phase, run]);
+
+  function replacePreview(next: string | null) {
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    previewRef.current = next;
+    setPreviewUrl(next);
+  }
+
+  function reset() {
+    replacePreview(null);
+    setPhase("idle");
+    setStep(0);
+    setFileName("");
+    setOcr(null);
+    setDraft(null);
+    setErrors({});
+    setSaved(null);
+    setDragging(false);
+    dragDepth.current = 0;
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function begin(file: File, preset?: OCRData) {
+    const kind = fileKind(file);
+    if (!kind) {
+      toast.error("That file type is not supported", {
+        description: "Upload a PNG, JPG, WEBP, SVG, or PDF.",
+      });
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      toast.error("That file is too large", {
+        description: "Receipts need to be under 10 MB.",
+      });
+      return;
+    }
+    const data = preset ?? suggestReceipt(file);
+    replacePreview(URL.createObjectURL(file));
+    setPreviewKind(kind);
+    setFileName(file.name);
+    setOcr(data);
+    setDraft(draftFromOCR(data));
+    setErrors({});
+    setSaved(null);
+    setStep(0);
+    setRun((current) => current + 1);
+    setPhase("processing");
+  }
+
+  function onDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    dragDepth.current = 0;
+    setDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    if (event.dataTransfer.files.length > 1) {
+      toast("Using the first file", { description: "Scan one receipt at a time." });
+    }
+    begin(file);
+  }
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!draft) return;
+    if (!hydrated) {
+      toast.error("The ledger is still loading", { description: "Try confirming again in a moment." });
+      return;
+    }
+    const result = validateDraft(draft);
+    if (!result.ok) {
+      setErrors(result.errors);
+      const first = FIELD_ORDER.find((key) => result.errors[key]);
+      if (first) document.getElementById(`ocr-${first}`)?.focus();
+      return;
+    }
+    const expense = addExpense({
+      ...result.value,
+      source: "ocr",
+      receiptName: fileName,
+    });
+    setSaved(expense);
+    setPhase("saved");
+    toast.success("Added to your ledger", {
+      description: `${expense.vendor} · ${formatMoney(expense.amount)}`,
+    });
+  }
+
+  if (phase === "saved" && saved) {
+    return (
+      <Card>
+        <CardContent className="grid gap-6 py-2 sm:grid-cols-[180px_1fr] sm:items-center">
+          {previewUrl && previewKind === "image" ? (
+            <ReceiptPreview url={previewUrl} kind={previewKind} name={fileName} compact />
+          ) : (
+            <span className="grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Check className="size-7" />
+            </span>
+          )}
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <p className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
+                Saved
+              </p>
+              <h2 className="font-heading text-2xl tracking-tight">Added to your ledger</h2>
+              <p className="text-sm text-muted-foreground">
+                {saved.vendor} · {formatMoney(saved.amount)} · {formatDate(saved.date)} ·{" "}
+                {saved.category}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" className="h-10" onClick={reset}>
+                Scan another
+              </Button>
+              <Button asChild variant="outline" className="h-10">
+                <Link href="/expenses">View ledger</Link>
+              </Button>
+              <Button asChild variant="ghost" className="h-10">
+                <Link href="/">Back to overview</Link>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (phase === "processing" && previewUrl) {
+    const progress = step === 0 ? 22 : step === 1 ? 58 : 86;
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Reading receipt</CardTitle>
+          <CardDescription>{fileName}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 lg:grid-cols-[280px_1fr]">
+          <div className="relative overflow-hidden rounded-xl bg-muted">
+            <ReceiptPreview url={previewUrl} kind={previewKind} name={fileName} />
+            <div className="folio-scanline pointer-events-none absolute inset-x-4 h-px bg-primary shadow-[0_0_16px_var(--primary)]" />
+          </div>
+          <div className="space-y-5">
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+              aria-valuenow={progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-700"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <ol className="grid gap-3" aria-live="polite">
+              {OCR_STEPS.map((item, index) => {
+                const state = index < step ? "done" : index === step ? "active" : "pending";
+                return (
+                  <li key={item.title} className="flex gap-3">
+                    <span className="mt-0.5 grid size-6 place-items-center">
+                      {state === "done" ? (
+                        <Check className="size-4 text-primary" />
+                      ) : state === "active" ? (
+                        <Loader2 className="size-4 animate-spin text-primary" />
+                      ) : (
+                        <span className="size-2 rounded-full bg-border" />
+                      )}
+                    </span>
+                    <span>
+                      <span className={state === "pending" ? "text-muted-foreground" : "font-medium"}>
+                        {item.title}
+                      </span>
+                      <span className="mt-0.5 block text-sm text-muted-foreground">{item.detail}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+            <Button type="button" variant="outline" onClick={reset}>
+              Cancel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (phase === "review" && previewUrl && draft && ocr) {
+    const confidence = Math.round(ocr.confidence * 100);
+    return (
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Receipt</CardTitle>
+            <CardDescription className="truncate">{fileName}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ReceiptPreview url={previewUrl} kind={previewKind} name={fileName} framed />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>Extracted fields</CardTitle>
+                <CardDescription>
+                  {ocr.matchedSample
+                    ? "Suggested fields match this voucher. Change anything before you add it."
+                    : "These fields are a suggested read. Check them against the receipt."}
+                </CardDescription>
+              </div>
+              <Badge variant="secondary">{confidence}% match</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onSubmit} className="grid gap-5">
+              <ExpenseFields
+                draft={draft}
+                onChange={setDraft}
+                errors={errors}
+                idPrefix="ocr"
+              />
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button type="submit" className="h-11 flex-1 text-base" disabled={!hydrated}>
+                  <Check />
+                  Confirm & Add to Expenses
+                </Button>
+                <Button type="button" variant="outline" className="h-11" onClick={reset}>
+                  Discard
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const samples = getSampleReceipts();
+
+  return (
+    <Card>
+      <CardContent className="grid gap-6">
+        <div
+          onDragEnter={(event) => {
+            event.preventDefault();
+            dragDepth.current += 1;
+            setDragging(true);
+          }}
+          onDragOver={(event) => event.preventDefault()}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            dragDepth.current -= 1;
+            if (dragDepth.current <= 0) {
+              dragDepth.current = 0;
+              setDragging(false);
+            }
+          }}
+          onDrop={onDrop}
+          className={`rounded-2xl border border-dashed px-6 py-12 text-center transition-colors ${
+            dragging ? "border-primary bg-primary/5" : "border-border bg-muted/40"
+          }`}
+        >
+          <input
+            ref={inputRef}
+            id="receipt-upload"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml,application/pdf,.png,.jpg,.jpeg,.webp,.svg,.pdf"
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) begin(file);
+            }}
+          />
+          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <ScanLine />
+          </span>
+          <h2 className="mt-4 font-heading text-2xl tracking-tight">Drop a receipt or voucher</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+            PNG, JPG, WEBP, SVG, or PDF. Folio stages a three-step read, then opens the image
+            beside an editable vendor, tax, and total.
+          </p>
+          <Button asChild className="mt-5 h-10">
+            <label htmlFor="receipt-upload">
+              <Upload />
+              Browse files
+            </label>
+          </Button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {samples.map((sample) => (
+            <button
+              key={sample.id}
+              type="button"
+              onClick={() => begin(sample.file, sample.data)}
+              className="flex items-center gap-3 rounded-xl bg-card px-4 py-3 text-left ring-1 ring-foreground/10 transition-colors hover:bg-muted"
+            >
+              <span className="grid size-10 place-items-center rounded-lg bg-muted">
+                {sample.id === "utility" ? <FileText className="size-4" /> : <FileImage className="size-4" />}
+              </span>
+              <span>
+                <span className="block text-sm font-medium">{sample.label}</span>
+                <span className="block text-xs text-muted-foreground">{sample.description}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReceiptPreview({
+  url,
+  kind,
+  name,
+  framed = false,
+  compact = false,
+}: {
+  url: string;
+  kind: PreviewKind;
+  name: string;
+  framed?: boolean;
+  compact?: boolean;
+}) {
+  if (kind === "pdf") {
+    return (
+      <iframe
+        title={name}
+        src={url}
+        className={`w-full rounded-lg bg-white ${compact ? "h-32" : "h-80"}`}
+      />
+    );
+  }
+
+  return (
+    // Blob and generated receipt previews are local object URLs, which next/image cannot optimize.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt={`Uploaded receipt ${name}`}
+      className={`w-full rounded-lg object-contain ${framed ? "max-h-[640px] bg-muted" : ""} ${
+        compact ? "h-32 object-cover" : "max-h-[420px]"
+      }`}
+    />
+  );
+}

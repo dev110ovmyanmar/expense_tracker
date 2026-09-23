@@ -1,0 +1,246 @@
+"use client";
+
+import { BookOpen, LayoutDashboard, RotateCcw, ScanLine } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState, type ReactNode } from "react";
+import { useExpenses } from "@/components/expense-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { expensesInMonth, sumAmounts } from "@/lib/expenses";
+import { formatMoney, formatMonth, parseMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+const NAV = [
+  { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/expenses", label: "Ledger", icon: BookOpen },
+  { href: "/scanner", label: "Scanner", icon: ScanLine },
+];
+
+export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const { storageWarning } = useExpenses();
+
+  return (
+    <div className="min-h-svh">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
+        <div className="px-5 pt-6">
+          <Brand />
+        </div>
+        <nav className="mt-8 grid gap-1 px-3">
+          {NAV.map((item) => (
+            <NavLink key={item.href} {...item} active={pathname === item.href} />
+          ))}
+        </nav>
+        <div className="mt-auto grid gap-4 px-4 pb-5">
+          <BudgetControls />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Theme</p>
+            <ThemeToggle />
+          </div>
+        </div>
+      </aside>
+
+      <div className="md:pl-64">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/85 px-4 py-3 backdrop-blur md:hidden">
+          <Brand />
+          <ThemeToggle />
+        </header>
+        <main className="px-4 pt-5 pb-24 md:px-8 md:pt-8 md:pb-10">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+            {storageWarning ? (
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                This browser blocked saving. Changes will disappear after a refresh.
+              </p>
+            ) : null}
+            <div className="md:hidden">
+              <BudgetControls compact />
+            </div>
+            {children}
+          </div>
+        </main>
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur md:hidden">
+          <ul className="grid grid-cols-3">
+            {NAV.map((item) => {
+              const active = pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex flex-col items-center gap-1 py-2.5 text-[11px]",
+                      active ? "text-primary" : "text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="size-5" />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
+    </div>
+  );
+}
+
+function Brand() {
+  return (
+    <Link href="/" className="flex items-center gap-2.5">
+      <span className="grid size-8 place-items-center rounded-lg bg-primary font-heading text-lg text-primary-foreground">
+        F
+      </span>
+      <span>
+        <span className="block font-heading text-lg leading-none">Folio</span>
+        <span className="text-[11px] text-muted-foreground">Personal ledger</span>
+      </span>
+    </Link>
+  );
+}
+
+function NavLink({
+  href,
+  label,
+  icon: Icon,
+  active,
+}: {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+      )}
+    >
+      <Icon className="size-4" />
+      {label}
+    </Link>
+  );
+}
+
+function BudgetControls({ compact = false }: { compact?: boolean }) {
+  const { budget, expenses, hydrated, setBudget, restoreSampleMonth } = useExpenses();
+  const [draft, setDraft] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const spent = sumAmounts(expensesInMonth(expenses));
+  const ratio = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+  const remaining = budget - spent;
+
+  function commit() {
+    const parsed = parseMoney(draft ?? "");
+    if (parsed !== null) setBudget(parsed);
+    setDraft(null);
+  }
+
+  if (!hydrated) {
+    return <div className="h-24 animate-pulse rounded-xl bg-muted" />;
+  }
+
+  const body = (
+    <div className="grid gap-3">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+            {formatMonth()}
+          </p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            {formatMoney(spent)}
+            <span className="text-muted-foreground"> of {formatMoney(budget)}</span>
+          </p>
+        </div>
+        {budget > 0 ? (
+          <p className={`text-xs ${remaining < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+            {remaining < 0 ? `${formatMoney(Math.abs(remaining))} over` : `${formatMoney(remaining)} left`}
+          </p>
+        ) : null}
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full ${remaining < 0 && budget > 0 ? "bg-destructive" : "bg-primary"}`}
+          style={{ width: `${ratio}%` }}
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor={compact ? "budget-mobile" : "budget-desktop"}>Monthly budget</Label>
+        <Input
+          id={compact ? "budget-mobile" : "budget-desktop"}
+          inputMode="decimal"
+          value={draft ?? String(budget)}
+          onChange={(event) => setDraft(event.target.value)}
+          onFocus={() => setDraft(String(budget))}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
+          className="h-10 font-mono"
+          aria-label="Monthly budget in dollars"
+        />
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="justify-start px-0"
+        onClick={() => setConfirmOpen(true)}
+      >
+        <RotateCcw />
+        Restore sample month
+      </Button>
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restore the sample month?</DialogTitle>
+            <DialogDescription>
+              This replaces the current ledger and budget with the built-in September-style sample.
+              Expenses you added will be removed from this browser.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                restoreSampleMonth();
+                setConfirmOpen(false);
+              }}
+            >
+              Restore sample
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+
+  if (!compact) return body;
+
+  return (
+    <details className="rounded-xl bg-card px-4 py-3 ring-1 ring-foreground/10">
+      <summary className="cursor-pointer list-none text-sm font-medium">
+        Budget · {budget > 0 && remaining < 0 ? `${formatMoney(Math.abs(remaining))} over` : `${formatMoney(Math.max(remaining, 0))} left`}
+      </summary>
+      <div className="pt-3">{body}</div>
+    </details>
+  );
+}
