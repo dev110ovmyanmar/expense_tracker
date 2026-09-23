@@ -1,7 +1,7 @@
 import { DEFAULT_BUDGET } from "@/lib/seed";
-import { CATEGORIES, type Category, type Expense, type ExpenseSource, type LineItem } from "@/types/expense";
+import { CATEGORIES, DEFAULT_CURRENCY, type Category, type Expense, type ExpenseSource, type LineItem } from "@/types/expense";
 
-export const STORAGE_KEY = "folio.ledger.v1";
+export const STORAGE_KEY = "folio.ledger.v2";
 
 export interface PersistedLedger {
   expenses: Expense[];
@@ -53,6 +53,7 @@ function sanitizeExpense(value: unknown): Expense | null {
     vendor,
     amount: Math.round(amount * 100) / 100,
     tax: Math.min(Math.round(tax * 100) / 100, Math.round(amount * 100) / 100),
+    currency: DEFAULT_CURRENCY,
     category: value.category,
     date,
     notes: typeof value.notes === "string" ? value.notes.slice(0, 400) : "",

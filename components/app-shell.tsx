@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { expensesInMonth, sumAmounts } from "@/lib/expenses";
-import { formatMoney, formatMonth, parseMoney } from "@/lib/format";
+import { formatMoney, formatMonth, moneyInput, parseMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -184,15 +184,15 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
         <Input
           id={compact ? "budget-mobile" : "budget-desktop"}
           inputMode="decimal"
-          value={draft ?? String(budget)}
+          value={draft ?? moneyInput(budget)}
           onChange={(event) => setDraft(event.target.value)}
-          onFocus={() => setDraft(String(budget))}
+          onFocus={() => setDraft(moneyInput(budget))}
           onBlur={commit}
           onKeyDown={(event) => {
             if (event.key === "Enter") event.currentTarget.blur();
           }}
           className="h-10 font-mono"
-          aria-label="Monthly budget in dollars"
+          aria-label="Monthly budget in kyat"
         />
       </div>
       <Button

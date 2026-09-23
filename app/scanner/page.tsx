@@ -12,7 +12,7 @@ export default function ScannerPage() {
       <PageHeader
         eyebrow="Receipt scanner"
         title="Read a voucher, then confirm it"
-        description="Upload a photo or PDF. Folio walks through upload, vendor and totals, then line items, and waits for you to correct the fields before they join the ledger."
+        description="Upload a City Express slip, tea-shop bill, or other thermal receipt. Folio reads the vendor, the DD/MM date, and the Total in kyat, then lets you correct the amount before it joins the ledger."
       />
       <OCRScanner />
     </div>

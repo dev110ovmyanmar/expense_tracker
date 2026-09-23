@@ -1,4 +1,10 @@
+export const DEFAULT_CURRENCY = "MMK" as const;
+
+export type Currency = typeof DEFAULT_CURRENCY;
+
 export const CATEGORIES = [
+  "Food & Beverages",
+  "Groceries",
   "Food",
   "Transport",
   "Utilities",
@@ -24,6 +30,7 @@ export interface Expense {
   vendor: string;
   amount: number;
   tax: number;
+  currency: Currency;
   category: Category;
   date: string;
   notes: string;
@@ -38,7 +45,11 @@ export interface OCRData {
   vendor: string;
   date: string;
   total: number;
+  totalFound: boolean;
   tax: number;
+  paid: number | null;
+  change: number | null;
+  currency: Currency;
   category: Category;
   notes: string;
   lineItems: LineItem[];
@@ -66,6 +77,7 @@ export interface ExpenseInput {
   vendor: string;
   amount: number;
   tax: number;
+  currency: Currency;
   category: Category;
   date: string;
   notes: string;

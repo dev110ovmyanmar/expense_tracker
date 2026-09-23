@@ -4,10 +4,20 @@ export const CATEGORY_META: Record<
   Category,
   { color: string; tint: string; description: string }
 > = {
-  Food: {
+  "Food & Beverages": {
     color: "#c4622d",
     tint: "#f4e3d4",
-    description: "Groceries, coffee, and meals",
+    description: "Tea shops, cafes, and meals",
+  },
+  Groceries: {
+    color: "#2f6f4e",
+    tint: "#dceade",
+    description: "City Express, markets, and convenience stores",
+  },
+  Food: {
+    color: "#a65b3a",
+    tint: "#f3e0d4",
+    description: "Other meals",
   },
   Transport: {
     color: "#2a7a78",

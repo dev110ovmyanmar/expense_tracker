@@ -1,191 +1,5 @@
-import { recentDate, roundMoney } from "@/lib/format";
-import type { Category, LineItem, OCRData } from "@/types/expense";
-
-interface ReceiptTemplate {
-  id: string;
-  keywords: string[];
-  vendor: string;
-  category: Category;
-  tax: number;
-  notes: string;
-  lines: [string, number][];
-}
-
-const TEMPLATES: ReceiptTemplate[] = [
-  {
-    id: "blue-bottle",
-    keywords: ["coffee", "cafe", "starbucks", "blue-bottle", "bluebottle"],
-    vendor: "Blue Bottle Coffee",
-    category: "Food",
-    tax: 0.98,
-    notes: "SoHo counter order",
-    lines: [
-      ["Cortado", 5.5],
-      ["Cardamom bun", 4.75],
-      ["Oat milk", 0.75],
-    ],
-  },
-  {
-    id: "sweetgreen",
-    keywords: ["sweetgreen", "salad", "lunch", "dinner", "restaurant"],
-    vendor: "Sweetgreen",
-    category: "Food",
-    tax: 1.57,
-    notes: "Harvest bowl and a limeade",
-    lines: [
-      ["Harvest bowl", 14.25],
-      ["Limeade", 3.5],
-    ],
-  },
-  {
-    id: "hmart",
-    keywords: ["grocery", "market", "hmart", "trader", "wholefoods"],
-    vendor: "H Mart",
-    category: "Food",
-    tax: 0,
-    notes: "Weekly groceries, mostly untaxed",
-    lines: [["Groceries", 64.2]],
-  },
-  {
-    id: "metro",
-    keywords: ["metro", "mta", "transit", "subway"],
-    vendor: "MTA MetroCard",
-    category: "Transport",
-    tax: 0,
-    notes: "7-day unlimited",
-    lines: [["7-day unlimited", 34]],
-  },
-  {
-    id: "uber",
-    keywords: ["uber", "lyft", "taxi", "ride"],
-    vendor: "Uber",
-    category: "Transport",
-    tax: 1.87,
-    notes: "Trip toward Canal Street",
-    lines: [
-      ["Trip fare", 18.6],
-      ["Booking fee", 2.5],
-    ],
-  },
-  {
-    id: "shell",
-    keywords: ["shell", "gas", "fuel", "exxon", "chevron"],
-    vendor: "Shell",
-    category: "Transport",
-    tax: 3.92,
-    notes: "Regular unleaded",
-    lines: [["Regular unleaded", 44.18]],
-  },
-  {
-    id: "coned",
-    keywords: ["coned", "edison", "electric", "utility", "power", "water"],
-    vendor: "Con Edison",
-    category: "Utilities",
-    tax: 7.12,
-    notes: "Residential service, account ending 440",
-    lines: [
-      ["Delivery charges", 72.4],
-      ["Supply charges", 18.1],
-    ],
-  },
-  {
-    id: "internet",
-    keywords: ["internet", "verizon", "spectrum", "wifi", "phone"],
-    vendor: "Spectrum",
-    category: "Utilities",
-    tax: 0,
-    notes: "Monthly fiber bill",
-    lines: [["Internet service", 79.99]],
-  },
-  {
-    id: "alamo",
-    keywords: ["movie", "cinema", "alamo", "ticket", "concert", "netflix"],
-    vendor: "Alamo Drafthouse",
-    category: "Entertainment",
-    tax: 4.04,
-    notes: "Two tickets with popcorn",
-    lines: [
-      ["Tickets", 32],
-      ["Popcorn", 8.5],
-      ["Soda", 5],
-    ],
-  },
-  {
-    id: "uniqlo",
-    keywords: ["uniqlo", "shop", "amazon", "store", "mall", "clothing"],
-    vendor: "Uniqlo SoHo",
-    category: "Shopping",
-    tax: 4.15,
-    notes: "Linen shirt and socks",
-    lines: [
-      ["Linen shirt", 39.9],
-      ["Socks", 6.9],
-    ],
-  },
-  {
-    id: "pharmacy",
-    keywords: ["pharmacy", "cvs", "clinic", "health", "gym"],
-    vendor: "City Pharmacy",
-    category: "Health",
-    tax: 1.31,
-    notes: "Ibuprofen and bandages",
-    lines: [
-      ["Ibuprofen", 8.49],
-      ["Bandages", 6.29],
-    ],
-  },
-  {
-    id: "hardware",
-    keywords: ["hardware", "ikea", "rent", "apartment", "home"],
-    vendor: "Center Hardware",
-    category: "Housing",
-    tax: 2.33,
-    notes: "Bulbs and tape for the hallway",
-    lines: [
-      ["LED bulbs", 18.4],
-      ["Painter's tape", 7.85],
-    ],
-  },
-];
-
-function hashString(value: string): number {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash;
-}
-
-function toLineItems(lines: [string, number][], seed: string): LineItem[] {
-  return lines.map(([description, amount], index) => ({
-    id: `${seed}-line-${index + 1}`,
-    description,
-    amount: roundMoney(amount),
-  }));
-}
-
-export function templateToOCR(
-  template: ReceiptTemplate,
-  options?: { date?: string; confidence?: number; matchedSample?: boolean; id?: string },
-): OCRData {
-  const lineItems = toLineItems(template.lines, options?.id ?? template.id);
-  const subtotal = roundMoney(lineItems.reduce((sum, item) => sum + item.amount, 0));
-  return {
-    vendor: template.vendor,
-    date: options?.date ?? recentDate(hashString(template.id) % 6),
-    total: roundMoney(subtotal + template.tax),
-    tax: roundMoney(template.tax),
-    category: template.category,
-    notes: template.notes,
-    lineItems,
-    confidence: options?.confidence ?? 0.91,
-    matchedSample: options?.matchedSample ?? false,
-  };
-}
-
-export function getTemplate(id: string): ReceiptTemplate | undefined {
-  return TEMPLATES.find((template) => template.id === id);
-}
+import { fallbackReceipt, extractPdfText, extractSvgText, parseReceiptText } from "@/lib/parse-receipt";
+import { DEFAULT_CURRENCY, type LineItem, type OCRData } from "@/types/expense";
 
 export const OCR_STEPS = [
   {
@@ -194,11 +8,11 @@ export const OCR_STEPS = [
   },
   {
     title: "Detecting vendor & totals",
-    detail: "Finding the merchant, date, and amount due",
+    detail: "Finding the shop, date, and the Total line in kyat",
   },
   {
     title: "Parsing line items & category",
-    detail: "Sorting charges and choosing a category",
+    detail: "Keeping cash tendered and change off the expense total",
   },
 ] as const;
 
@@ -214,18 +28,56 @@ export function fileKind(file: File): "image" | "pdf" | null {
   return null;
 }
 
-export function suggestReceipt(file: File): OCRData {
-  const haystack = `${file.name} ${file.type}`.toLowerCase();
-  const matched = TEMPLATES.find((template) =>
-    template.keywords.some((keyword) => haystack.includes(keyword)),
-  );
-  const hash = hashString(`${file.name}:${file.size}`);
-  const template = matched ?? TEMPLATES[hash % TEMPLATES.length];
-  const confidence = matched ? 0.93 : roundMoney(0.86 + (hash % 10) / 100);
-  return templateToOCR(template, {
-    date: recentDate(hash % 6),
-    confidence,
-    matchedSample: false,
-    id: `scan-${hash.toString(16)}`,
-  });
+async function readReceiptSource(file: File): Promise<string> {
+  const name = file.name.toLowerCase();
+  const isSvg = file.type.includes("svg") || name.endsWith(".svg");
+  const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
+  const isText = file.type.startsWith("text/") || name.endsWith(".txt");
+  if (!isSvg && !isPdf && !isText) return "";
+
+  if (isPdf) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = "";
+    const chunk = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
+    }
+    return extractPdfText(binary);
+  }
+
+  const raw = await file.text();
+  return isSvg ? extractSvgText(raw) : raw;
+}
+
+function toOCRData(fileName: string, source: string): OCRData {
+  const parsed = source.trim() ? parseReceiptText(source, fileName) : fallbackReceipt(fileName);
+  const lineItems: LineItem[] = parsed.lineItems.map((item, index) => ({
+    id: `scan-line-${index + 1}`,
+    description: item.description,
+    amount: item.amount,
+  }));
+  return {
+    vendor: parsed.vendor,
+    date: parsed.date,
+    total: parsed.total ?? 0,
+    totalFound: parsed.totalFound,
+    tax: parsed.tax,
+    paid: parsed.paid,
+    change: parsed.change,
+    currency: parsed.currency || DEFAULT_CURRENCY,
+    category: parsed.category,
+    notes: parsed.notes,
+    lineItems,
+    confidence: parsed.confidence,
+    matchedSample: parsed.totalFound,
+  };
+}
+
+export async function extractReceipt(file: File): Promise<OCRData> {
+  try {
+    const source = await readReceiptSource(file);
+    return toOCRData(file.name, source);
+  } catch {
+    return toOCRData(file.name, "");
+  }
 }

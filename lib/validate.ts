@@ -1,14 +1,26 @@
-import { parseMoney, roundMoney, todayISO } from "@/lib/format";
-import { CATEGORIES, type Category, type Expense, type ExpenseDraft, type LineItem, type OCRData } from "@/types/expense";
+import { moneyInput, parseMoney, roundMoney, todayISO } from "@/lib/format";
+import {
+  CATEGORIES,
+  DEFAULT_CURRENCY,
+  type Category,
+  type Currency,
+  type Expense,
+  type ExpenseDraft,
+  type LineItem,
+  type OCRData,
+} from "@/types/expense";
 
 export type FieldErrors = Partial<
   Record<"vendor" | "date" | "amount" | "tax" | "lineItems" | "notes", string>
 >;
 
+const MAX_AMOUNT = 100_000_000;
+
 export interface ValidatedExpense {
   vendor: string;
   amount: number;
   tax: number;
+  currency: Currency;
   category: Category;
   date: string;
   notes: string;
@@ -21,7 +33,7 @@ export function emptyDraft(): ExpenseDraft {
     date: todayISO(),
     amount: "",
     tax: "",
-    category: "Food",
+    category: "Food & Beverages",
     notes: "",
     lineItems: [],
   };
@@ -31,14 +43,14 @@ export function draftFromExpense(expense: Expense): ExpenseDraft {
   return {
     vendor: expense.vendor,
     date: expense.date,
-    amount: expense.amount.toFixed(2),
-    tax: expense.tax ? expense.tax.toFixed(2) : "0.00",
+    amount: moneyInput(expense.amount),
+    tax: moneyInput(expense.tax),
     category: expense.category,
     notes: expense.notes,
     lineItems: expense.lineItems.map((item) => ({
       id: item.id,
       description: item.description,
-      amount: item.amount.toFixed(2),
+      amount: moneyInput(item.amount),
     })),
   };
 }
@@ -47,14 +59,14 @@ export function draftFromOCR(data: OCRData): ExpenseDraft {
   return {
     vendor: data.vendor,
     date: data.date,
-    amount: data.total.toFixed(2),
-    tax: data.tax.toFixed(2),
+    amount: data.totalFound ? moneyInput(data.total) : "",
+    tax: moneyInput(data.tax),
     category: data.category,
     notes: data.notes,
     lineItems: data.lineItems.map((item) => ({
       id: item.id,
       description: item.description,
-      amount: item.amount.toFixed(2),
+      amount: moneyInput(item.amount),
     })),
   };
 }
@@ -82,9 +94,9 @@ export function validateDraft(
   if (!isValidDate(draft.date)) errors.date = "Choose a real date.";
 
   const amount = parseMoney(draft.amount);
-  if (amount === null) errors.amount = "Enter a total like 18.40.";
+  if (amount === null) errors.amount = "Enter a total like 1,650 or 1,650 Ks.";
   else if (amount <= 0) errors.amount = "The total needs to be greater than zero.";
-  else if (amount > 1_000_000) errors.amount = "That total is past the ledger limit.";
+  else if (amount > MAX_AMOUNT) errors.amount = "That total is past the ledger limit.";
 
   const taxRaw = draft.tax.trim();
   const tax = taxRaw === "" ? 0 : parseMoney(taxRaw);
@@ -108,7 +120,7 @@ export function validateDraft(
     }
     const lineAmount = parseMoney(lineAmountRaw);
     if (lineAmount === null || lineAmount < 0) {
-      errors.lineItems = "Line amounts should look like 4.75.";
+      errors.lineItems = "Line amounts should look like 1,200 or 1,200 Ks.";
       break;
     }
     lineItems.push({ id: line.id, description, amount: lineAmount });
@@ -131,6 +143,7 @@ export function validateDraft(
       vendor,
       amount,
       tax,
+      currency: DEFAULT_CURRENCY,
       category: draft.category,
       date: draft.date,
       notes,

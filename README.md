@@ -18,10 +18,11 @@ Open [http://localhost:3000](http://localhost:3000).
 - **Overview** shows this month's total, budget remaining, daily average, scanned-receipt count, and a category chart.
 - **Ledger** lists every expense with search, category, and date filters, plus edit and delete.
 - **Scanner** accepts a PNG, JPG, WEBP, SVG, or PDF. A three-step read (`Uploading image`, `Detecting vendor & totals`, `Parsing line items & category`) opens the file beside a form. **Confirm & Add to Expenses** writes it into the ledger and updates the overview.
-- Sample vouchers (a coffee receipt and a utility bill) are built in the browser so you can try the scanner without a file.
+- Sample vouchers (City Express and a tea shop) are built in the browser so you can try the scanner without a file. The parser reads their text and keeps the Total line, not the cash tendered or change.
+- Amounts are Myanmar kyat and display with thousand separators, such as `1,650 Ks`.
 - Light and dark mode follow the system, and can be switched from the sidebar.
 
-The scanner suggests structured fields from the file name and a set of receipt templates. It does not call an external vision API. Review the preview against the image before confirming. Images stay on this device and are not stored with the expense.
+The scanner reads text embedded in SVG, PDF, and plain-text files. A photo with no embedded text opens an editable form in MMK (category Food & Beverages or Groceries) so you can type the Total yourself. It does not call an external vision API. Review the preview against the image before confirming. Images stay on this device and are not stored with the expense.
 
 ## Scripts
 

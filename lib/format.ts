@@ -48,12 +48,12 @@ export function formatMonth(date = new Date()): string {
 }
 
 export function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  const whole = Number.isInteger(value);
+  const formatted = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
   }).format(value);
+  return `${formatted} Ks`;
 }
 
 export function roundMoney(value: number): number {
@@ -61,7 +61,11 @@ export function roundMoney(value: number): number {
 }
 
 export function parseMoney(input: string): number | null {
-  const cleaned = input.trim().replace(/[$,]/g, "");
+  const cleaned = input
+    .trim()
+    .replace(/kyats?|mmk|ks|ကျပ်/gi, "")
+    .replace(/,/g, "")
+    .trim();
   if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
   const value = Number(cleaned);
   if (!Number.isFinite(value)) return null;
@@ -76,5 +80,14 @@ export function greeting(date = new Date()): string {
 }
 
 export function moneyInput(value: number): string {
-  return value.toFixed(2);
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: Number.isInteger(value) ? 0 : 2,
+  }).format(value);
+}
+
+export function formatReceiptDate(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  if (!year || !month || !day) return iso;
+  return `${day}/${month}/${year}`;
 }

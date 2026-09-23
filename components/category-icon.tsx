@@ -5,6 +5,7 @@ import {
   HeartPulse,
   Home,
   ShoppingBag,
+  ShoppingBasket,
   UtensilsCrossed,
   Zap,
   type LucideIcon,
@@ -13,6 +14,8 @@ import { CATEGORY_META } from "@/lib/categories";
 import type { Category } from "@/types/expense";
 
 const ICONS: Record<Category, LucideIcon> = {
+  "Food & Beverages": UtensilsCrossed,
+  Groceries: ShoppingBasket,
   Food: UtensilsCrossed,
   Transport: Bus,
   Utilities: Zap,

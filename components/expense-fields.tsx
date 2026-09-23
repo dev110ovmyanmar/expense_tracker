@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CATEGORY_META } from "@/lib/categories";
-import { formatMoney, parseMoney, roundMoney } from "@/lib/format";
+import { formatMoney, moneyInput, parseMoney, roundMoney } from "@/lib/format";
 import { lineItemsTotal, type FieldErrors } from "@/lib/validate";
 import { CATEGORIES, type ExpenseDraft } from "@/types/expense";
 
@@ -97,28 +97,46 @@ export function ExpenseFields({
         </div>
         <div className="grid gap-2">
           <Label htmlFor={`${idPrefix}-amount`}>Total amount</Label>
-          <Input
-            id={`${idPrefix}-amount`}
-            inputMode="decimal"
-            value={draft.amount}
-            onChange={(event) => update({ amount: event.target.value })}
-            placeholder="0.00"
-            aria-invalid={Boolean(errors.amount)}
-            className="h-10 font-mono"
-          />
-          {errors.amount ? <FieldError>{errors.amount}</FieldError> : null}
+          <div className="relative">
+            <Input
+              id={`${idPrefix}-amount`}
+              inputMode="decimal"
+              value={draft.amount}
+              onChange={(event) => update({ amount: event.target.value })}
+              placeholder="1,650"
+              aria-invalid={Boolean(errors.amount)}
+              className="h-10 pr-12 font-mono"
+            />
+            <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
+              Ks
+            </span>
+          </div>
+          {errors.amount ? (
+            <FieldError>{errors.amount}</FieldError>
+          ) : total !== null ? (
+            <p className="text-xs text-muted-foreground">Saves as {formatMoney(total)}. Edit this if the scan grabbed cash or change.</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Myanmar kyat. Commas are optional, for example 1,650 or 1,650 Ks.
+            </p>
+          )}
         </div>
         <div className="grid gap-2">
           <Label htmlFor={`${idPrefix}-tax`}>Tax</Label>
-          <Input
-            id={`${idPrefix}-tax`}
-            inputMode="decimal"
-            value={draft.tax}
-            onChange={(event) => update({ tax: event.target.value })}
-            placeholder="0.00"
-            aria-invalid={Boolean(errors.tax)}
-            className="h-10 font-mono"
-          />
+          <div className="relative">
+            <Input
+              id={`${idPrefix}-tax`}
+              inputMode="decimal"
+              value={draft.tax}
+              onChange={(event) => update({ tax: event.target.value })}
+              placeholder="0"
+              aria-invalid={Boolean(errors.tax)}
+              className="h-10 pr-12 font-mono"
+            />
+            <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
+              Ks
+            </span>
+          </div>
           {errors.tax ? <FieldError>{errors.tax}</FieldError> : null}
         </div>
       </div>
@@ -175,8 +193,8 @@ export function ExpenseFields({
                       ),
                     })
                   }
-                  placeholder="0.00"
-                  className="h-10 w-28 shrink-0 font-mono"
+                  placeholder="1,650"
+                  className="h-10 w-36 shrink-0 font-mono"
                 />
                 <Button
                   type="button"
@@ -208,7 +226,7 @@ export function ExpenseFields({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => update({ amount: expected.toFixed(2) })}
+              onClick={() => update({ amount: moneyInput(expected) })}
             >
               Use {formatMoney(expected)}
             </Button>

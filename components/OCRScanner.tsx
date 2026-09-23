@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatMoney } from "@/lib/format";
-import { fileKind, OCR_STEPS, suggestReceipt } from "@/lib/ocr";
+import { extractReceipt, fileKind, OCR_STEPS } from "@/lib/ocr";
 import { getSampleReceipts } from "@/lib/sample-receipts";
 import { draftFromOCR, validateDraft, type FieldErrors } from "@/lib/validate";
 import type { Expense, ExpenseDraft, OCRData } from "@/types/expense";
@@ -33,6 +33,7 @@ export function OCRScanner() {
   const inputRef = useRef<HTMLInputElement>(null);
   const dragDepth = useRef(0);
   const previewRef = useRef<string | null>(null);
+  const generation = useRef(0);
   const [phase, setPhase] = useState<Phase>("idle");
   const [step, setStep] = useState(0);
   const [run, setRun] = useState(0);
@@ -56,7 +57,6 @@ export function OCRScanner() {
     const timers = [
       window.setTimeout(() => setStep(1), 700),
       window.setTimeout(() => setStep(2), 1500),
-      window.setTimeout(() => setPhase("review"), 2400),
     ];
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [phase, run]);
@@ -68,6 +68,7 @@ export function OCRScanner() {
   }
 
   function reset() {
+    generation.current += 1;
     replacePreview(null);
     setPhase("idle");
     setStep(0);
@@ -81,7 +82,7 @@ export function OCRScanner() {
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  function begin(file: File, preset?: OCRData) {
+  function begin(file: File) {
     const kind = fileKind(file);
     if (!kind) {
       toast.error("That file type is not supported", {
@@ -95,17 +96,29 @@ export function OCRScanner() {
       });
       return;
     }
-    const data = preset ?? suggestReceipt(file);
+    const token = generation.current + 1;
+    generation.current = token;
+    const started = Date.now();
     replacePreview(URL.createObjectURL(file));
     setPreviewKind(kind);
     setFileName(file.name);
-    setOcr(data);
-    setDraft(draftFromOCR(data));
+    setOcr(null);
+    setDraft(null);
     setErrors({});
     setSaved(null);
     setStep(0);
     setRun((current) => current + 1);
     setPhase("processing");
+
+    void extractReceipt(file).then((data) => {
+      const wait = Math.max(0, 2400 - (Date.now() - started));
+      window.setTimeout(() => {
+        if (generation.current !== token) return;
+        setOcr(data);
+        setDraft(draftFromOCR(data));
+        setPhase("review");
+      }, wait);
+    });
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
@@ -263,9 +276,9 @@ export function OCRScanner() {
               <div>
                 <CardTitle>Extracted fields</CardTitle>
                 <CardDescription>
-                  {ocr.matchedSample
-                    ? "Suggested fields match this voucher. Change anything before you add it."
-                    : "These fields are a suggested read. Check them against the receipt."}
+                  {ocr.totalFound && confidence >= 70
+                    ? "The Total line is filled in kyat. Change any amount before you add it."
+                    : "The read is incomplete. Type the Total in kyat and leave out cash tendered or change."}
                 </CardDescription>
               </div>
               <Badge variant="secondary">{confidence}% match</Badge>
@@ -273,6 +286,7 @@ export function OCRScanner() {
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="grid gap-5">
+              <ReceiptReadout ocr={ocr} />
               <ExpenseFields
                 draft={draft}
                 onChange={setDraft}
@@ -336,8 +350,8 @@ export function OCRScanner() {
           </span>
           <h2 className="mt-4 font-heading text-2xl tracking-tight">Drop a receipt or voucher</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-            PNG, JPG, WEBP, SVG, or PDF. Folio stages a three-step read, then opens the image
-            beside an editable vendor, tax, and total.
+            PNG, JPG, WEBP, SVG, or PDF. Folio reads kyat totals from the print, then opens the
+            receipt beside fields you can correct before they join the ledger.
           </p>
           <Button asChild className="mt-5 h-10">
             <label htmlFor="receipt-upload">
@@ -351,11 +365,11 @@ export function OCRScanner() {
             <button
               key={sample.id}
               type="button"
-              onClick={() => begin(sample.file, sample.data)}
+              onClick={() => begin(sample.file)}
               className="flex items-center gap-3 rounded-xl bg-card px-4 py-3 text-left ring-1 ring-foreground/10 transition-colors hover:bg-muted"
             >
               <span className="grid size-10 place-items-center rounded-lg bg-muted">
-                {sample.id === "utility" ? <FileText className="size-4" /> : <FileImage className="size-4" />}
+                {sample.id === "tea-shop" ? <FileText className="size-4" /> : <FileImage className="size-4" />}
               </span>
               <span>
                 <span className="block text-sm font-medium">{sample.label}</span>
@@ -366,6 +380,28 @@ export function OCRScanner() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ReceiptReadout({ ocr }: { ocr: OCRData }) {
+  const tendered = ocr.paid !== null || ocr.change !== null;
+  if (!tendered && ocr.totalFound) return null;
+  return (
+    <div
+      className={`rounded-lg px-3 py-2 text-sm ${
+        ocr.totalFound ? "bg-muted text-muted-foreground" : "bg-amber-500/10 text-foreground"
+      }`}
+    >
+      {ocr.totalFound ? (
+        <p>
+          Cash and change stay out of the total
+          {ocr.paid !== null ? ` · tendered ${formatMoney(ocr.paid)}` : ""}
+          {ocr.change !== null ? ` · change ${formatMoney(ocr.change)}` : ""}.
+        </p>
+      ) : (
+        <p>No Total line was read. Enter the expense in kyat. Currency stays MMK.</p>
+      )}
+    </div>
   );
 }
 
