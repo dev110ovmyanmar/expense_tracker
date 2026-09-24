@@ -5,10 +5,10 @@ import {
   saveRemoteBudget,
   upsertExpenses,
 } from "@/lib/ledger-db";
-import { deleteGoal, deleteRecurring, fetchPlanning, goalFromInput, recurringFromInput, saveGoal, saveRecurring } from "@/lib/planning-db";
+import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInput, recurringFromInput, saveGoal, saveRecurring, saveSettings } from "@/lib/planning-db";
 import { scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { Expense, ExpenseInput } from "@/types/expense";
 import { DEFAULT_CURRENCY } from "@/types/expense";
 import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
@@ -19,6 +19,9 @@ export interface LedgerSnapshot {
   recurring: RecurringItem[];
   goals: SavingsGoal[];
   planningMessage: string | null;
+  userEmail: string | null;
+  dailyReminder: boolean;
+  lastReminded: string | null;
   ready: boolean;
   saving: boolean;
   storageWarning: boolean;
@@ -31,6 +34,9 @@ const SERVER_SNAPSHOT: LedgerSnapshot = {
   recurring: [],
   goals: [],
   planningMessage: null,
+  userEmail: null,
+  dailyReminder: false,
+  lastReminded: null,
   ready: false,
   saving: false,
   storageWarning: false,
@@ -70,8 +76,12 @@ async function load() {
     return;
   }
   try {
-    const ledger = await fetchRemoteLedger();
-    const planning = await fetchPlanning();
+    const [{ data: userData }, ledger, planning, settings] = await Promise.all([
+      getSupabase().auth.getUser(),
+      fetchRemoteLedger(),
+      fetchPlanning(),
+      fetchSettings(),
+    ]);
     const logged = planning.message ? { expenses: [], recurring: planning.recurring } : await applyAutoLog(planning.recurring);
     publish({
       expenses: sortExpenses([...logged.expenses, ...ledger.expenses]),
@@ -79,6 +89,9 @@ async function load() {
       recurring: logged.recurring,
       goals: planning.goals,
       planningMessage: planning.message,
+      userEmail: userData.user?.email ?? null,
+      dailyReminder: settings.dailyReminder,
+      lastReminded: settings.lastReminded,
       ready: true,
       saving: false,
       storageWarning: false,
@@ -89,10 +102,30 @@ async function load() {
   }
 }
 
+function signedOut() {
+  publish({
+    ...SERVER_SNAPSHOT,
+    ready: true,
+    userEmail: null,
+  });
+}
+
 function start() {
   if (started || typeof window === "undefined") return;
   started = true;
-  void load();
+  if (!isSupabaseConfigured()) {
+    fail(MISSING);
+    return;
+  }
+  const supabase = getSupabase();
+  void supabase.auth.getSession().then(({ data }) => {
+    if (data.session) void load();
+    else signedOut();
+  });
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) void load();
+    else signedOut();
+  });
 }
 
 function requireReady() {
@@ -342,5 +375,35 @@ export async function addToGoal(id: string, amount: number, monthly = false) {
     await saveGoal(updated);
     snapshot = { ...snapshot, goals: snapshot.goals.map((entry) => (entry.id === id ? updated : entry)) };
   }, "The savings could not be added.");
+}
+
+export async function setDailyReminder(enabled: boolean) {
+  requireReady();
+  const next = { dailyReminder: enabled, lastReminded: enabled ? snapshot.lastReminded : null };
+  publish({ ...snapshot, saving: true, dailyReminder: enabled });
+  try {
+    await saveSettings(next);
+    publish({ ...snapshot, ...next, saving: false, storageWarning: false, storageMessage: null });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The reminder could not be saved.";
+    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
+  }
+}
+
+export async function markReminded(day: string) {
+  if (!snapshot.userEmail) return;
+  const next = { dailyReminder: snapshot.dailyReminder, lastReminded: day };
+  try {
+    await saveSettings(next);
+    publish({ ...snapshot, lastReminded: day });
+  } catch {
+    publish({ ...snapshot, lastReminded: day });
+  }
+}
+
+export async function signOut() {
+  if (!isSupabaseConfigured()) return;
+  await getSupabase().auth.signOut();
 }
 

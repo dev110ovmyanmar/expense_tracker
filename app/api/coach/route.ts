@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { buildCoachSnapshot, type CoachSnapshot } from "@/lib/budget-coach";
 import { expensesInMonth, ofType, totalsByCategory } from "@/lib/expenses";
 import { formatMoney } from "@/lib/format";
@@ -67,8 +68,14 @@ async function askGemini(key: string, snapshot: CoachSnapshot): Promise<string> 
   throw new Error("empty coach reply");
 }
 
-async function monthSnapshot(): Promise<CoachSnapshot> {
-  const ledger = await fetchRemoteLedger();
+async function monthSnapshot(request: Request): Promise<CoachSnapshot> {
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const client = token && url && key
+    ? createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } } })
+    : undefined;
+  const ledger = client ? await fetchRemoteLedger(client) : { expenses: [], budget: 0 };
   const month = expensesInMonth(ledger.expenses);
   const snapshot = buildCoachSnapshot(month, ledger.budget);
   const categories = totalsByCategory(ofType(month, "expense")).slice(0, 5);
@@ -78,13 +85,13 @@ async function monthSnapshot(): Promise<CoachSnapshot> {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const key = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
   if (!key) {
     return Response.json({ message: "အကြံပေးရန် ချိတ်ဆက်မှု မပြည့်စုံသေးပါ။" }, { status: 503 });
   }
   try {
-    const snapshot = isSupabaseConfigured() ? await monthSnapshot() : buildCoachSnapshot([], 0);
+    const snapshot = isSupabaseConfigured() ? await monthSnapshot(request) : buildCoachSnapshot([], 0);
     let message = "";
     for (let attempt = 0; attempt < 2 && !message; attempt += 1) {
       try {

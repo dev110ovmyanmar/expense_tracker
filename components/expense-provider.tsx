@@ -10,9 +10,12 @@ import {
   getLedgerSnapshot,
   getServerLedgerSnapshot,
   logRecurring,
+  markReminded,
   removeGoal,
   removeRecurring,
   setBudget,
+  setDailyReminder,
+  signOut,
   subscribeLedger,
   updateExpense,
   updateGoal,
@@ -27,6 +30,9 @@ interface ExpenseContextValue {
   recurring: RecurringItem[];
   goals: SavingsGoal[];
   planningMessage: string | null;
+  userEmail: string | null;
+  dailyReminder: boolean;
+  lastReminded: string | null;
   hydrated: boolean;
   saving: boolean;
   storageWarning: boolean;
@@ -43,6 +49,9 @@ interface ExpenseContextValue {
   updateGoal: (id: string, input: SavingsGoalInput) => Promise<void>;
   removeGoal: (id: string) => Promise<void>;
   addToGoal: (id: string, amount: number, monthly?: boolean) => Promise<void>;
+  setDailyReminder: (enabled: boolean) => Promise<void>;
+  markReminded: (day: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -61,6 +70,9 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       recurring: ledger.recurring,
       goals: ledger.goals,
       planningMessage: ledger.planningMessage,
+      userEmail: ledger.userEmail,
+      dailyReminder: ledger.dailyReminder,
+      lastReminded: ledger.lastReminded,
       hydrated: ledger.ready,
       saving: ledger.saving,
       storageWarning: ledger.storageWarning,
@@ -77,6 +89,9 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       updateGoal,
       removeGoal,
       addToGoal,
+      setDailyReminder,
+      markReminded,
+      signOut,
     }),
     [ledger],
   );

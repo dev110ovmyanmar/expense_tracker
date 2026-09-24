@@ -5,11 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { AuthScreen } from "@/components/auth-screen";
+import { DailyReminderBanner, ReminderToggle } from "@/components/daily-reminder";
 import { useExpenses } from "@/components/expense-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { expensesInMonth, ofType, sumAmounts } from "@/lib/expenses";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { formatMoney, formatMonth, moneyInput, parseMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +25,13 @@ const NAV = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { storageWarning, storageMessage } = useExpenses();
+  const { storageWarning, storageMessage, hydrated, userEmail, signOut } = useExpenses();
+  const needsAccount = isSupabaseConfigured() && hydrated && !userEmail;
+
+  if (!hydrated) {
+    return <div className="grid min-h-svh place-items-center text-sm text-muted-foreground">Loading…</div>;
+  }
+  if (needsAccount) return <AuthScreen />;
 
   return (
     <div className="min-h-svh">
@@ -37,6 +46,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="mt-auto grid gap-4 px-4 pb-5">
           <BudgetControls />
+          {userEmail ? <ReminderToggle /> : null}
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 truncate text-xs text-muted-foreground">{userEmail}</p>
+            <button type="button" className="shrink-0 text-xs" onClick={() => void signOut()}>Log out</button>
+          </div>
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">Theme</p>
             <ThemeToggle />
@@ -47,7 +61,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="md:pl-64">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/85 px-4 py-3 backdrop-blur md:hidden">
           <Brand />
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            {userEmail ? (
+              <button type="button" className="text-xs text-muted-foreground" onClick={() => void signOut()}>Log out</button>
+            ) : null}
+            <ThemeToggle />
+          </div>
         </header>
         <main className="overflow-x-hidden px-4 pt-3 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 md:gap-5">
@@ -56,7 +75,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {storageMessage ?? "The ledger could not be saved. Try again in a moment."}
               </p>
             ) : null}
-            <div className="md:hidden">
+            {userEmail ? <DailyReminderBanner /> : null}
+            <div className="grid gap-3 md:hidden">
+              {userEmail ? <ReminderToggle /> : null}
               <BudgetControls compact />
             </div>
             {children}

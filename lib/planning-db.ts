@@ -1,5 +1,4 @@
-import { LEDGER_ID } from "@/lib/ledger-db";
-import { getSupabase } from "@/lib/supabase";
+import { currentUserId, getSupabase } from "@/lib/supabase";
 import { CATEGORIES, type Category } from "@/types/expense";
 import type { Frequency, RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
 
@@ -111,10 +110,10 @@ export async function fetchPlanning(): Promise<{
   };
 }
 
-function recurringRow(item: RecurringItem) {
+async function recurringRow(item: RecurringItem) {
   return {
     id: item.id,
-    user_id: LEDGER_ID,
+    user_id: await currentUserId(),
     name: item.name,
     amount: item.amount,
     category: item.category,
@@ -130,7 +129,7 @@ function recurringRow(item: RecurringItem) {
 
 export async function saveRecurring(item: RecurringItem) {
   const supabase = getSupabase();
-  const { error } = await supabase.from("recurring_items").upsert(recurringRow(item));
+  const { error } = await supabase.from("recurring_items").upsert(await recurringRow(item));
   if (error) throw new Error(missingTable(error.message) ? MISSING_TABLE : error.message);
 }
 
@@ -144,10 +143,10 @@ export function recurringFromInput(id: string, input: RecurringInput, createdAt:
   return { id, ...input, createdAt, updatedAt };
 }
 
-function goalRow(goal: SavingsGoal) {
+async function goalRow(goal: SavingsGoal) {
   return {
     id: goal.id,
-    user_id: LEDGER_ID,
+    user_id: await currentUserId(),
     name: goal.name,
     target_amount: goal.targetAmount,
     target_date: goal.targetDate,
@@ -161,7 +160,7 @@ function goalRow(goal: SavingsGoal) {
 
 export async function saveGoal(goal: SavingsGoal) {
   const supabase = getSupabase();
-  const { error } = await supabase.from("savings_goals").upsert(goalRow(goal));
+  const { error } = await supabase.from("savings_goals").upsert(await goalRow(goal));
   if (error) throw new Error(missingTable(error.message) ? MISSING_TABLE : error.message);
 }
 
@@ -169,6 +168,36 @@ export async function deleteGoal(id: string) {
   const supabase = getSupabase();
   const { error } = await supabase.from("savings_goals").delete().eq("id", id);
   if (error) throw new Error(missingTable(error.message) ? MISSING_TABLE : error.message);
+}
+
+export interface UserSettings {
+  dailyReminder: boolean;
+  lastReminded: string | null;
+}
+
+export async function fetchSettings(): Promise<UserSettings> {
+  const supabase = getSupabase();
+  const userId = await currentUserId();
+  const { data, error } = await supabase.from("user_settings").select("daily_reminder, last_reminded").eq("user_id", userId).maybeSingle();
+  if (error) {
+    if (/user_settings|schema cache|does not exist/i.test(error.message)) return { dailyReminder: false, lastReminded: null };
+    throw new Error(error.message);
+  }
+  return {
+    dailyReminder: Boolean(data?.daily_reminder),
+    lastReminded: data?.last_reminded ? String(data.last_reminded).slice(0, 10) : null,
+  };
+}
+
+export async function saveSettings(settings: UserSettings) {
+  const supabase = getSupabase();
+  const { error } = await supabase.from("user_settings").upsert({
+    user_id: await currentUserId(),
+    daily_reminder: settings.dailyReminder,
+    last_reminded: settings.lastReminded,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw new Error(/user_settings|schema cache|does not exist/i.test(error.message) ? "Run supabase/migrations/005_user_auth.sql, then try the reminder again." : error.message);
 }
 
 export function goalFromInput(id: string, input: SavingsGoalInput, createdAt: string, updatedAt: string, lastAllocated: string | null): SavingsGoal {

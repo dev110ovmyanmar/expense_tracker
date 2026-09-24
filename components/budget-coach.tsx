@@ -1,6 +1,7 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useEffect, useMemo, useState } from "react";
 import type { Expense } from "@/types/expense";
 
@@ -15,7 +16,14 @@ export function BudgetCoach({ expenses, budget }: { expenses: Expense[]; budget:
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/coach", { signal: controller.signal })
+    void (async () => {
+      const headers: HeadersInit = {};
+      if (isSupabaseConfigured()) {
+        const token = (await getSupabase().auth.getSession()).data.session?.access_token;
+        if (token) headers.Authorization = `Bearer ${token}`;
+      }
+      return fetch("/api/coach", { signal: controller.signal, headers });
+    })()
       .then((response) => response.json().catch(() => null))
       .then((payload: unknown) => {
         const next =
