@@ -16,7 +16,7 @@ import { formatLongDate, formatMoney, formatMonth, greeting, roundMoney } from "
 import type { LucideIcon } from "lucide-react";
 
 export function Dashboard() {
-  const { expenses, budget, hydrated } = useExpenses();
+  const { expenses, budget, hydrated, recurring, goals } = useExpenses();
 
   if (!hydrated) {
     return (
@@ -94,6 +94,23 @@ export function Dashboard() {
           tone={over ? "warning" : "default"}
           progress={budget > 0 ? Math.min(100, (spent / budget) * 100) : undefined}
         />
+      </section>
+
+      <section className="grid gap-2 sm:grid-cols-2">
+        <Link href="/plan#bills" className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
+          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Fixed bills</p>
+          <p className="mt-1 text-sm">
+            {recurring.length === 0
+              ? "Add rent, internet, or a subscription."
+              : `${recurring.length} on a schedule`}
+          </p>
+        </Link>
+        <Link href="/plan#goals" className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
+          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Savings goals</p>
+          <p className="mt-1 text-sm">
+            {goals.length === 0 ? "Start an envelope for a target amount." : `${goals.length} ${goals.length === 1 ? "envelope" : "envelopes"} in progress`}
+          </p>
+        </Link>
       </section>
 
       <RunwayChart expenses={expenses} />

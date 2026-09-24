@@ -3,18 +3,30 @@
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import {
   addExpense,
+  addGoal,
+  addRecurring,
+  addToGoal,
   deleteExpense,
   getLedgerSnapshot,
   getServerLedgerSnapshot,
+  logRecurring,
+  removeGoal,
+  removeRecurring,
   setBudget,
   subscribeLedger,
   updateExpense,
+  updateGoal,
+  updateRecurring,
 } from "@/lib/ledger-store";
 import type { Expense, ExpenseInput } from "@/types/expense";
+import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
 
 interface ExpenseContextValue {
   expenses: Expense[];
   budget: number;
+  recurring: RecurringItem[];
+  goals: SavingsGoal[];
+  planningMessage: string | null;
   hydrated: boolean;
   saving: boolean;
   storageWarning: boolean;
@@ -23,6 +35,14 @@ interface ExpenseContextValue {
   updateExpense: (id: string, input: ExpenseInput) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setBudget: (amount: number) => Promise<void>;
+  addRecurring: (input: RecurringInput) => Promise<RecurringItem>;
+  updateRecurring: (id: string, input: RecurringInput) => Promise<void>;
+  removeRecurring: (id: string) => Promise<void>;
+  logRecurring: (id: string) => Promise<void>;
+  addGoal: (input: SavingsGoalInput) => Promise<SavingsGoal>;
+  updateGoal: (id: string, input: SavingsGoalInput) => Promise<void>;
+  removeGoal: (id: string) => Promise<void>;
+  addToGoal: (id: string, amount: number, monthly?: boolean) => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -38,6 +58,9 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     () => ({
       expenses: ledger.expenses,
       budget: ledger.budget,
+      recurring: ledger.recurring,
+      goals: ledger.goals,
+      planningMessage: ledger.planningMessage,
       hydrated: ledger.ready,
       saving: ledger.saving,
       storageWarning: ledger.storageWarning,
@@ -46,6 +69,14 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       updateExpense,
       deleteExpense,
       setBudget,
+      addRecurring,
+      updateRecurring,
+      removeRecurring,
+      logRecurring,
+      addGoal,
+      updateGoal,
+      removeGoal,
+      addToGoal,
     }),
     [ledger],
   );

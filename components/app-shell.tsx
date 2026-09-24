@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, LayoutDashboard, ScanLine } from "lucide-react";
+import { BookOpen, LayoutDashboard, ScanLine, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/expenses", label: "Ledger", icon: BookOpen },
+  { href: "/plan", label: "Plan", icon: Wallet },
   { href: "/scanner", label: "Scanner", icon: ScanLine },
 ];
 
@@ -62,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </main>
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-          <ul className="grid grid-cols-3 px-2">
+          <ul className="grid grid-cols-4 px-1">
             {NAV.map((item) => {
               const active = pathname === item.href;
               const Icon = item.icon;
@@ -72,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium",
+                      "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium",
                       active ? "text-primary" : "text-muted-foreground",
                     )}
                   >

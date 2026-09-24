@@ -74,7 +74,7 @@ function rowToExpense(row: ExpenseRow): Expense | null {
   };
 }
 
-const LEDGER_ID = "00000000-0000-0000-0000-000000000001";
+export const LEDGER_ID = "00000000-0000-0000-0000-000000000001";
 
 const LOCKED =
   "Run supabase/migrations/002_public_ledger.sql in the Supabase SQL editor, then reload. Anonymous sign-in is not used.";

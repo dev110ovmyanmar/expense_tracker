@@ -1,16 +1,24 @@
+import { todayISO } from "@/lib/format";
 import {
   deleteRemoteExpense,
   fetchRemoteLedger,
   saveRemoteBudget,
   upsertExpenses,
 } from "@/lib/ledger-db";
+import { deleteGoal, deleteRecurring, fetchPlanning, goalFromInput, recurringFromInput, saveGoal, saveRecurring } from "@/lib/planning-db";
+import { scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import type { Expense, ExpenseInput } from "@/types/expense";
+import { DEFAULT_CURRENCY } from "@/types/expense";
+import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
 
 export interface LedgerSnapshot {
   expenses: Expense[];
   budget: number;
+  recurring: RecurringItem[];
+  goals: SavingsGoal[];
+  planningMessage: string | null;
   ready: boolean;
   saving: boolean;
   storageWarning: boolean;
@@ -20,6 +28,9 @@ export interface LedgerSnapshot {
 const SERVER_SNAPSHOT: LedgerSnapshot = {
   expenses: [],
   budget: DEFAULT_BUDGET,
+  recurring: [],
+  goals: [],
+  planningMessage: null,
   ready: false,
   saving: false,
   storageWarning: false,
@@ -60,9 +71,14 @@ async function load() {
   }
   try {
     const ledger = await fetchRemoteLedger();
+    const planning = await fetchPlanning();
+    const logged = planning.message ? { expenses: [], recurring: planning.recurring } : await applyAutoLog(planning.recurring);
     publish({
-      expenses: sortExpenses(ledger.expenses),
+      expenses: sortExpenses([...logged.expenses, ...ledger.expenses]),
       budget: ledger.budget,
+      recurring: logged.recurring,
+      goals: planning.goals,
+      planningMessage: planning.message,
       ready: true,
       saving: false,
       storageWarning: false,
@@ -176,5 +192,155 @@ export async function setBudget(amount: number) {
     publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
     throw new Error(message);
   }
+}
+
+function chargesFor(item: RecurringItem, dates: string[]): Expense[] {
+  const now = new Date().toISOString();
+  return dates.map((date) => ({
+    id: crypto.randomUUID(),
+    type: item.type,
+    vendor: item.name,
+    amount: item.amount,
+    currency: DEFAULT_CURRENCY,
+    category: item.category,
+    date,
+    notes: item.frequency === "weekly" ? "Weekly recurring" : "Monthly recurring",
+    source: "manual" as const,
+    lineItems: [],
+    createdAt: now,
+    updatedAt: now,
+  }));
+}
+
+async function applyAutoLog(items: RecurringItem[]) {
+  const today = todayISO();
+  const created: Expense[] = [];
+  const recurring: RecurringItem[] = [];
+  for (const item of items) {
+    const due = item.active && item.autoLog ? scheduleCatchUp(item.nextDue, item.frequency, today) : { dates: [], nextDue: item.nextDue };
+    if (due.dates.length === 0) {
+      recurring.push(item);
+      continue;
+    }
+    const expenses = chargesFor(item, due.dates);
+    const updated = { ...item, nextDue: due.nextDue, updatedAt: new Date().toISOString() };
+    try {
+      await upsertExpenses(expenses);
+      await saveRecurring(updated);
+      created.push(...expenses);
+      recurring.push(updated);
+    } catch {
+      recurring.push(item);
+    }
+  }
+  return { expenses: created, recurring };
+}
+
+async function writePlanning<T>(work: () => Promise<T>, fallback: string): Promise<T> {
+  requireReady();
+  publish({ ...snapshot, saving: true });
+  try {
+    const result = await work();
+    publish({ ...snapshot, saving: false, storageWarning: false, storageMessage: null });
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : fallback;
+    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
+  }
+}
+
+export async function addRecurring(input: RecurringInput) {
+  const now = new Date().toISOString();
+  const item = recurringFromInput(crypto.randomUUID(), input, now, now);
+  await writePlanning(async () => {
+    await saveRecurring(item);
+    snapshot = { ...snapshot, recurring: [...snapshot.recurring, item].sort((a, b) => a.nextDue.localeCompare(b.nextDue)) };
+  }, "The bill could not be saved.");
+  return item;
+}
+
+export async function updateRecurring(id: string, input: RecurringInput) {
+  const current = snapshot.recurring.find((item) => item.id === id);
+  if (!current) throw new Error("That bill is no longer on the schedule.");
+  const updated = { ...current, ...input, updatedAt: new Date().toISOString() };
+  await writePlanning(async () => {
+    await saveRecurring(updated);
+    snapshot = {
+      ...snapshot,
+      recurring: snapshot.recurring
+        .map((item) => (item.id === id ? updated : item))
+        .sort((a, b) => a.nextDue.localeCompare(b.nextDue)),
+    };
+  }, "The bill could not be updated.");
+}
+
+export async function removeRecurring(id: string) {
+  await writePlanning(async () => {
+    await deleteRecurring(id);
+    snapshot = { ...snapshot, recurring: snapshot.recurring.filter((item) => item.id !== id) };
+  }, "The bill could not be removed.");
+}
+
+export async function logRecurring(id: string) {
+  const item = snapshot.recurring.find((entry) => entry.id === id);
+  if (!item || !item.active) return;
+  const due = scheduleCatchUp(item.nextDue, item.frequency, todayISO());
+  if (due.dates.length === 0) return;
+  const expenses = chargesFor(item, due.dates);
+  const updated = { ...item, nextDue: due.nextDue, updatedAt: new Date().toISOString() };
+  await writePlanning(async () => {
+    await upsertExpenses(expenses);
+    await saveRecurring(updated);
+    snapshot = {
+      ...snapshot,
+      expenses: sortExpenses([...expenses, ...snapshot.expenses]),
+      recurring: snapshot.recurring.map((entry) => (entry.id === id ? updated : entry)),
+    };
+  }, "The bill could not be logged.");
+}
+
+export async function addGoal(input: SavingsGoalInput) {
+  const now = new Date().toISOString();
+  const goal = goalFromInput(crypto.randomUUID(), input, now, now, null);
+  await writePlanning(async () => {
+    await saveGoal(goal);
+    snapshot = { ...snapshot, goals: [...snapshot.goals, goal] };
+  }, "The goal could not be saved.");
+  return goal;
+}
+
+export async function updateGoal(id: string, input: SavingsGoalInput) {
+  const current = snapshot.goals.find((goal) => goal.id === id);
+  if (!current) throw new Error("That goal is no longer here.");
+  const updated = { ...current, ...input, updatedAt: new Date().toISOString() };
+  await writePlanning(async () => {
+    await saveGoal(updated);
+    snapshot = { ...snapshot, goals: snapshot.goals.map((goal) => (goal.id === id ? updated : goal)) };
+  }, "The goal could not be updated.");
+}
+
+export async function removeGoal(id: string) {
+  await writePlanning(async () => {
+    await deleteGoal(id);
+    snapshot = { ...snapshot, goals: snapshot.goals.filter((goal) => goal.id !== id) };
+  }, "The goal could not be removed.");
+}
+
+export async function addToGoal(id: string, amount: number, monthly = false) {
+  const goal = snapshot.goals.find((entry) => entry.id === id);
+  if (!goal || !Number.isFinite(amount) || amount <= 0) return;
+  const month = todayISO().slice(0, 7);
+  if (monthly && goal.lastAllocated === month) return;
+  const updated: SavingsGoal = {
+    ...goal,
+    savedAmount: Math.round((goal.savedAmount + amount) * 100) / 100,
+    lastAllocated: monthly ? month : goal.lastAllocated,
+    updatedAt: new Date().toISOString(),
+  };
+  await writePlanning(async () => {
+    await saveGoal(updated);
+    snapshot = { ...snapshot, goals: snapshot.goals.map((entry) => (entry.id === id ? updated : entry)) };
+  }, "The savings could not be added.");
 }
 
