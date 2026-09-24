@@ -37,13 +37,7 @@ export function Dashboard() {
   const remaining = roundMoney(budget - spent);
   const over = budget > 0 && remaining < 0;
   const month = formatMonth();
-
-  const description =
-    monthRows.length === 0
-      ? `Nothing logged for ${month} yet. Add income, a cost, or a scanned receipt.`
-      : net >= 0
-        ? `${formatMoney(earned)} in and ${formatMoney(spent)} out. ${formatMoney(net)} is left this month.`
-        : `${formatMoney(spent)} went out against ${formatMoney(earned)} in. The month is ${formatMoney(Math.abs(net))} short.`;
+  const description = monthBudgetLine(month, monthRows.length, spent, budget);
 
   return (
     <div className="flex flex-col gap-8">
@@ -137,6 +131,20 @@ export function Dashboard() {
       </section>
     </div>
   );
+}
+
+function monthBudgetLine(month: string, count: number, spent: number, budget: number): string {
+  if (count === 0) {
+    return `Nothing logged for ${month} yet. Add income, a cost, or a scanned receipt.`;
+  }
+  if (budget <= 0) {
+    return `${formatMoney(spent)} spent in ${month}. Set a monthly budget to see what is left.`;
+  }
+  const remaining = roundMoney(budget - spent);
+  if (remaining >= 0) {
+    return `${formatMoney(spent)} of your ${formatMoney(budget)} monthly budget is spent. ${formatMoney(remaining)} is left this month.`;
+  }
+  return `${formatMoney(spent)} spent against your ${formatMoney(budget)} monthly budget. This month is ${formatMoney(Math.abs(remaining))} over.`;
 }
 
 function StatCard({
