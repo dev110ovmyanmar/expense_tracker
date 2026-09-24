@@ -64,6 +64,7 @@ function rowToExpense(row: ExpenseRow): Expense | null {
     category: row.category,
     date: row.date.slice(0, 10),
     notes: typeof metadata.notes === "string" ? metadata.notes : "",
+    type: row.type === "income" ? "income" : "expense",
     source,
     receiptName: typeof metadata.receiptName === "string" ? metadata.receiptName : undefined,
     lineItems: lineItemsFrom(row.line_items, row.id),
@@ -92,7 +93,7 @@ function expenseToRow(expense: Expense) {
     shop_name: expense.vendor,
     amount: expense.amount,
     category: expense.category,
-    type: "expense",
+    type: expense.type,
     date: expense.date,
     line_items: expense.lineItems,
     metadata: {

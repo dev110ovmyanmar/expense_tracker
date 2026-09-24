@@ -1,6 +1,6 @@
 import { moneyInput, parseMoney, roundMoney, todayISO } from "@/lib/format";
 import {
-  CATEGORIES,
+  categoriesFor,
   DEFAULT_CURRENCY,
   type Category,
   type Currency,
@@ -17,6 +17,7 @@ export type FieldErrors = Partial<
 const MAX_AMOUNT = 100_000_000;
 
 export interface ValidatedExpense {
+  type: Expense["type"];
   vendor: string;
   amount: number;
   currency: Currency;
@@ -28,6 +29,7 @@ export interface ValidatedExpense {
 
 export function emptyDraft(): ExpenseDraft {
   return {
+    type: "expense",
     vendor: "",
     date: todayISO(),
     amount: "",
@@ -37,8 +39,21 @@ export function emptyDraft(): ExpenseDraft {
   };
 }
 
+export function salaryDraft(): ExpenseDraft {
+  return {
+    type: "income",
+    vendor: "Monthly Salary",
+    date: todayISO(),
+    amount: "",
+    category: "Salary",
+    notes: "",
+    lineItems: [],
+  };
+}
+
 export function draftFromExpense(expense: Expense): ExpenseDraft {
   return {
+    type: expense.type,
     vendor: expense.vendor,
     date: expense.date,
     amount: moneyInput(expense.amount),
@@ -56,6 +71,7 @@ export function draftFromExpense(expense: Expense): ExpenseDraft {
 
 export function draftFromOCR(data: OCRData): ExpenseDraft {
   return {
+    type: "expense",
     vendor: data.vendor,
     date: data.date,
     amount: data.totalFound ? moneyInput(data.total) : "",
@@ -88,7 +104,7 @@ export function validateDraft(
   const errors: FieldErrors = {};
   const vendor = draft.vendor.trim().replace(/\s+/g, " ");
 
-  if (!vendor) errors.vendor = "Add the merchant or payee.";
+  if (!vendor) errors.vendor = draft.type === "income" ? "Add who paid you." : "Add the merchant or payee.";
   else if (vendor.length > 80) errors.vendor = "Keep the name under 80 characters.";
 
   if (!isValidDate(draft.date)) errors.date = "Choose a real date.";
@@ -138,7 +154,7 @@ export function validateDraft(
   const notes = draft.notes.trim();
   if (notes.length > 400) errors.notes = "Notes need to stay under 400 characters.";
 
-  if (!CATEGORIES.includes(draft.category)) {
+  if (!categoriesFor(draft.type).includes(draft.category)) {
     errors.lineItems = "Choose a category.";
   }
 
@@ -149,6 +165,7 @@ export function validateDraft(
   return {
     ok: true,
     value: {
+      type: draft.type,
       vendor,
       amount,
       currency: DEFAULT_CURRENCY,

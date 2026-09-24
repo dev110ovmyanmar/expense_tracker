@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CATEGORY_META } from "@/lib/categories";
 import { formatMoney, moneyInput, parseMoney } from "@/lib/format";
 import { lineItemsTotal, type FieldErrors } from "@/lib/validate";
-import { CATEGORIES, type ExpenseDraft } from "@/types/expense";
+import { categoriesFor, type EntryType, type ExpenseDraft } from "@/types/expense";
 
 export function ExpenseFields({
   draft,
@@ -38,20 +38,48 @@ export function ExpenseFields({
   const linesOver =
     itemsSum !== null && total !== null && itemsSum > total + 0.009;
 
+  const income = draft.type === "income";
+  const categories = categoriesFor(draft.type);
+
   function update(partial: Partial<ExpenseDraft>) {
     onChange({ ...draft, ...partial });
   }
 
+  function setType(type: EntryType) {
+    const allowed = categoriesFor(type);
+    onChange({
+      ...draft,
+      type,
+      category: allowed.includes(draft.category) ? draft.category : allowed[0],
+      lineItems: type === "income" ? [] : draft.lineItems,
+    });
+  }
+
   return (
     <div className="grid gap-4">
+      <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+        {(["expense", "income"] as const).map((type) => (
+          <button
+            key={type}
+            type="button"
+            aria-pressed={draft.type === type}
+            onClick={() => setType(type)}
+            className={`h-9 rounded-md text-sm font-medium ${
+              draft.type === type ? "bg-background shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            {type === "expense" ? "Expense" : "Income"}
+          </button>
+        ))}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2 sm:col-span-2">
-          <Label htmlFor={`${idPrefix}-vendor`}>Vendor name</Label>
+          <Label htmlFor={`${idPrefix}-vendor`}>{income ? "Source" : "Vendor name"}</Label>
           <Input
             id={`${idPrefix}-vendor`}
             value={draft.vendor}
             onChange={(event) => update({ vendor: event.target.value })}
-            placeholder="Merchant or payee"
+            placeholder={income ? "Employer or payer" : "Merchant or payee"}
             aria-invalid={Boolean(errors.vendor)}
             autoComplete="off"
             className="h-10"
@@ -75,7 +103,7 @@ export function ExpenseFields({
           <Select
             value={draft.category}
             onValueChange={(category) => {
-              if ((CATEGORIES as readonly string[]).includes(category)) {
+              if (categories.includes(category as ExpenseDraft["category"])) {
                 update({ category: category as ExpenseDraft["category"] });
               }
             }}
@@ -84,7 +112,7 @@ export function ExpenseFields({
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
-              {CATEGORIES.map((category) => (
+              {categories.map((category) => (
                 <SelectItem key={category} value={category}>
                   <span className="flex items-center gap-2">
                     <CategoryDot category={category} className="size-2 rounded-full" />
@@ -115,7 +143,8 @@ export function ExpenseFields({
             <FieldError>{errors.amount}</FieldError>
           ) : total !== null ? (
             <p className="text-xs text-muted-foreground">
-              Saves as {formatMoney(total)}. On a voucher that is the total or grand total, not the net amount.
+              Saves as {formatMoney(total)}
+              {income ? "." : ". On a voucher that is the total or grand total, not the net amount."}
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
@@ -125,6 +154,7 @@ export function ExpenseFields({
         </div>
       </div>
 
+      {income ? null : (
       <div className="grid gap-2" id={`${idPrefix}-lineItems`}>
         <div className="flex items-center justify-between gap-3">
           <Label>Line items</Label>
@@ -248,6 +278,7 @@ export function ExpenseFields({
           </div>
         ) : null}
       </div>
+      )}
 
       <div className="grid gap-2">
         <Label htmlFor={`${idPrefix}-notes`}>Notes</Label>

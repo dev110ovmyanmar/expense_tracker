@@ -54,4 +54,19 @@ export const CATEGORY_META: Record<
     tint: "#e7e4df",
     description: "Everything that doesn't fit yet",
   },
+  Salary: {
+    color: "#1f7a4d",
+    tint: "#d7f0e3",
+    description: "Monthly pay and wages",
+  },
+  Freelance: {
+    color: "#1d6b8a",
+    tint: "#d6eef6",
+    description: "Client work and contracts",
+  },
+  Investments: {
+    color: "#8a6a1d",
+    tint: "#f6edd4",
+    description: "Dividends, interest, and returns",
+  },
 };

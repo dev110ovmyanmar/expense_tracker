@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { filterExpenses, sumAmounts } from "@/lib/expenses";
+import { filterExpenses, ofType, sumAmounts } from "@/lib/expenses";
 import { formatMoney, formatMonth, startOfMonthISO, todayISO } from "@/lib/format";
 import { CATEGORIES, type Category } from "@/types/expense";
 
@@ -36,7 +36,8 @@ export function Ledger() {
         : filterExpenses(expenses, { query, category, from, to }),
     [expenses, query, category, from, to, rangeInvalid],
   );
-  const total = sumAmounts(filtered);
+  const incomeTotal = sumAmounts(ofType(filtered, "income"));
+  const expenseTotal = sumAmounts(ofType(filtered, "expense"));
   const monthDefault = from === startOfMonthISO() && to === todayISO() && !query && category === "all";
 
   if (!hydrated) {
@@ -114,7 +115,7 @@ export function Ledger() {
         <p className="text-sm text-muted-foreground">
           {rangeInvalid
             ? "The start date is after the end date."
-            : `Showing ${filtered.length} of ${expenses.length} · ${formatMoney(total)}`}
+            : `Showing ${filtered.length} of ${expenses.length} · +${formatMoney(incomeTotal)} in · −${formatMoney(expenseTotal)} out`}
         </p>
         <Button
           type="button"

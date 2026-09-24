@@ -2,7 +2,7 @@ export const DEFAULT_CURRENCY = "MMK" as const;
 
 export type Currency = typeof DEFAULT_CURRENCY;
 
-export const CATEGORIES = [
+export const EXPENSE_CATEGORIES = [
   "Food & Beverages",
   "Groceries",
   "Food",
@@ -15,7 +15,22 @@ export const CATEGORIES = [
   "Other",
 ] as const;
 
+export const INCOME_CATEGORIES = ["Salary", "Freelance", "Investments", "Other"] as const;
+
+export const CATEGORIES = [
+  ...EXPENSE_CATEGORIES,
+  "Salary",
+  "Freelance",
+  "Investments",
+] as const;
+
 export type Category = (typeof CATEGORIES)[number];
+
+export type EntryType = "income" | "expense";
+
+export function categoriesFor(type: EntryType): readonly Category[] {
+  return type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+}
 
 export type ExpenseSource = "manual" | "ocr";
 
@@ -48,6 +63,7 @@ export interface VoucherScan {
 
 export interface Expense {
   id: string;
+  type: EntryType;
   vendor: string;
   amount: number;
   currency: Currency;
@@ -87,6 +103,7 @@ export interface DraftLineItem {
 }
 
 export interface ExpenseDraft {
+  type: EntryType;
   vendor: string;
   date: string;
   amount: string;
@@ -96,6 +113,7 @@ export interface ExpenseDraft {
 }
 
 export interface ExpenseInput {
+  type: EntryType;
   vendor: string;
   amount: number;
   currency: Currency;

@@ -1,4 +1,6 @@
 import {
+  Banknote,
+  Briefcase,
   Bus,
   CircleDot,
   Clapperboard,
@@ -6,6 +8,7 @@ import {
   Home,
   ShoppingBag,
   ShoppingBasket,
+  TrendingUp,
   UtensilsCrossed,
   Zap,
   type LucideIcon,
@@ -24,6 +27,9 @@ const ICONS: Record<Category, LucideIcon> = {
   Health: HeartPulse,
   Housing: Home,
   Other: CircleDot,
+  Salary: Banknote,
+  Freelance: Briefcase,
+  Investments: TrendingUp,
 };
 
 export function CategoryIcon({

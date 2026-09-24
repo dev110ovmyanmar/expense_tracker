@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, PiggyBank, ScanLine, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, PiggyBank, Scale, ScanLine } from "lucide-react";
 import Link from "next/link";
 import { AddExpenseButton } from "@/components/ExpenseForm";
 import { PageHeader } from "@/components/page-header";
@@ -9,7 +9,7 @@ import { SpendingChart } from "@/components/SpendingChart";
 import { TransactionList } from "@/components/transaction-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { expensesInMonth, sortExpenses, sumAmounts } from "@/lib/expenses";
+import { expensesInMonth, ofType, sortExpenses, sumAmounts } from "@/lib/expenses";
 import { formatLongDate, formatMoney, formatMonth, greeting, roundMoney } from "@/lib/format";
 import type { LucideIcon } from "lucide-react";
 
@@ -26,23 +26,22 @@ export function Dashboard() {
     );
   }
 
-  const monthExpenses = sortExpenses(expensesInMonth(expenses));
+  const monthRows = sortExpenses(expensesInMonth(expenses));
+  const monthExpenses = ofType(monthRows, "expense");
+  const monthIncome = ofType(monthRows, "income");
   const spent = sumAmounts(monthExpenses);
-  const scanned = monthExpenses.filter((expense) => expense.source === "ocr").length;
-  const day = new Date().getDate();
-  const daily = roundMoney(spent / day);
+  const earned = sumAmounts(monthIncome);
+  const net = roundMoney(earned - spent);
   const remaining = roundMoney(budget - spent);
   const over = budget > 0 && remaining < 0;
   const month = formatMonth();
 
   const description =
-    monthExpenses.length === 0
-      ? `Nothing logged for ${month} yet. Add a cost or scan a receipt to fill the month in.`
-      : over
-        ? `${formatMoney(spent)} is logged for ${month}, ${formatMoney(Math.abs(remaining))} past the ${formatMoney(budget)} budget.`
-        : budget > 0
-          ? `${formatMoney(spent)} across ${monthExpenses.length} expenses. ${formatMoney(remaining)} is still inside the ${formatMoney(budget)} budget.`
-          : `${formatMoney(spent)} across ${monthExpenses.length} expenses. Set a monthly budget in the sidebar when you want a ceiling.`;
+    monthRows.length === 0
+      ? `Nothing logged for ${month} yet. Add income, a cost, or a scanned receipt.`
+      : net >= 0
+        ? `${formatMoney(earned)} in and ${formatMoney(spent)} out. ${formatMoney(net)} is left this month.`
+        : `${formatMoney(spent)} went out against ${formatMoney(earned)} in. The month is ${formatMoney(Math.abs(net))} short.`;
 
   return (
     <div className="flex flex-col gap-8">
@@ -53,6 +52,7 @@ export function Dashboard() {
         actions={
           <>
             <AddExpenseButton className="h-10" />
+            <AddExpenseButton label="Add income" variant="outline" className="h-10" initialType="income" />
             <Button asChild variant="outline" className="h-10">
               <Link href="/scanner">
                 <ScanLine />
@@ -65,10 +65,25 @@ export function Dashboard() {
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Spent this month"
-          value={formatMoney(spent)}
-          hint={`${monthExpenses.length} ${monthExpenses.length === 1 ? "expense" : "expenses"}`}
-          icon={Wallet}
+          label="Total income"
+          value={`+${formatMoney(earned)}`}
+          hint={`${monthIncome.length} ${monthIncome.length === 1 ? "payment" : "payments"} this month`}
+          icon={ArrowDownLeft}
+          tone="positive"
+        />
+        <StatCard
+          label="Total expenses"
+          value={`−${formatMoney(spent)}`}
+          hint={`${monthExpenses.length} ${monthExpenses.length === 1 ? "expense" : "expenses"} this month`}
+          icon={ArrowUpRight}
+          tone="warning"
+        />
+        <StatCard
+          label="Net balance"
+          value={`${net >= 0 ? "+" : "−"}${formatMoney(Math.abs(net))}`}
+          hint={net >= 0 ? "Income covers this month's spending" : "Spending is ahead of income"}
+          icon={Scale}
+          tone={net >= 0 ? "positive" : "warning"}
         />
         <StatCard
           label={budget <= 0 ? "No budget set" : over ? "Over budget" : "Budget remaining"}
@@ -81,19 +96,6 @@ export function Dashboard() {
           icon={PiggyBank}
           tone={over ? "warning" : "default"}
           progress={budget > 0 ? Math.min(100, (spent / budget) * 100) : undefined}
-        />
-        <StatCard
-          label="Daily average"
-          value={formatMoney(daily)}
-          hint={`Across ${day} ${day === 1 ? "day" : "days"} this month`}
-          icon={CalendarDays}
-        />
-        <StatCard
-          label="Receipts scanned"
-          value={String(scanned)}
-          hint={scanned === 0 ? "None yet — open the scanner" : "Captured with the scanner"}
-          icon={ScanLine}
-          href="/scanner"
         />
       </section>
 
@@ -110,16 +112,16 @@ export function Dashboard() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Latest</CardTitle>
-            <CardDescription>The newest charges this month</CardDescription>
+            <CardDescription>The newest income and expenses this month</CardDescription>
           </CardHeader>
           <CardContent>
             <TransactionList
-              expenses={monthExpenses.slice(0, 5)}
-              emptyTitle="No expenses yet"
-              emptyBody="Add one by hand or confirm a scanned receipt."
+              expenses={monthRows.slice(0, 5)}
+              emptyTitle="Nothing yet"
+              emptyBody="Add income, log a cost, or confirm a scanned receipt."
             />
           </CardContent>
-          {monthExpenses.length > 0 ? (
+          {monthRows.length > 0 ? (
             <div className="px-4 pb-4">
               <Button asChild variant="outline" className="w-full">
                 <Link href="/expenses">Open the full ledger</Link>
@@ -145,7 +147,7 @@ function StatCard({
   value: string;
   hint: string;
   icon: LucideIcon;
-  tone?: "default" | "warning";
+  tone?: "default" | "warning" | "positive";
   progress?: number;
   href?: string;
 }) {
@@ -158,13 +160,23 @@ function StatCard({
           </p>
           <span
             className={`grid size-8 place-items-center rounded-lg ${
-              tone === "warning" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+              tone === "warning"
+                ? "bg-destructive/10 text-destructive"
+                : tone === "positive"
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "bg-primary/10 text-primary"
             }`}
           >
             <Icon className="size-4" />
           </span>
         </div>
-        <p className="font-mono text-2xl tracking-tight tabular-nums">{value}</p>
+        <p
+          className={`font-mono text-2xl tracking-tight tabular-nums ${
+            tone === "warning" ? "text-destructive" : tone === "positive" ? "text-emerald-600 dark:text-emerald-400" : ""
+          }`}
+        >
+          {value}
+        </p>
         <p className="text-xs text-muted-foreground">{hint}</p>
         {typeof progress === "number" ? (
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">

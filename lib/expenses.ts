@@ -1,5 +1,5 @@
 import { monthKey, roundMoney } from "@/lib/format";
-import type { Category, Expense } from "@/types/expense";
+import type { Category, EntryType, Expense } from "@/types/expense";
 
 export function sortExpenses(expenses: Expense[]): Expense[] {
   return [...expenses].sort((a, b) => {
@@ -17,9 +17,14 @@ export function sumAmounts(expenses: Expense[]): number {
   return roundMoney(expenses.reduce((sum, expense) => sum + expense.amount, 0));
 }
 
+export function ofType(expenses: Expense[], type: EntryType): Expense[] {
+  return expenses.filter((expense) => expense.type === type);
+}
+
 export function totalsByCategory(expenses: Expense[]): { category: Category; total: number }[] {
   const totals = new Map<Category, number>();
   for (const expense of expenses) {
+    if (expense.type !== "expense") continue;
     totals.set(expense.category, (totals.get(expense.category) ?? 0) + expense.amount);
   }
   return [...totals.entries()]

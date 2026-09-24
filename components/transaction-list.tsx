@@ -85,7 +85,16 @@ export function TransactionList({
                         ) : null}
                       </p>
                     </div>
-                    <p className="font-mono text-sm tabular-nums">{formatMoney(expense.amount)}</p>
+                    <p
+                      className={`font-mono text-sm tabular-nums ${
+                        expense.type === "income"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-rose-700 dark:text-rose-400"
+                      }`}
+                    >
+                      {expense.type === "income" ? "+" : "−"}
+                      {formatMoney(expense.amount)}
+                    </p>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-1">
                     {hasDetails ? (

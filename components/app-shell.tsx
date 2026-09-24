@@ -9,7 +9,7 @@ import { useExpenses } from "@/components/expense-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { expensesInMonth, sumAmounts } from "@/lib/expenses";
+import { expensesInMonth, ofType, sumAmounts } from "@/lib/expenses";
 import { formatMoney, formatMonth, moneyInput, parseMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -132,7 +132,7 @@ function NavLink({
 function BudgetControls({ compact = false }: { compact?: boolean }) {
   const { budget, expenses, hydrated, setBudget } = useExpenses();
   const [draft, setDraft] = useState<string | null>(null);
-  const spent = sumAmounts(expensesInMonth(expenses));
+  const spent = sumAmounts(ofType(expensesInMonth(expenses), "expense"));
   const ratio = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
   const remaining = budget - spent;
 
