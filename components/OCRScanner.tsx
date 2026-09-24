@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatMoney } from "@/lib/format";
 import { extractReceipt, fileKind, OCR_STEPS } from "@/lib/ocr";
+import { quotesForDraft, type PriceQuote } from "@/lib/price-intel";
 import { draftFromOCR, validateDraft, type FieldErrors } from "@/lib/validate";
 import type { Expense, ExpenseDraft, OCRData } from "@/types/expense";
 
@@ -21,7 +22,7 @@ const FIELD_ORDER = ["vendor", "date", "amount", "lineItems", "notes"] as const;
 const MAX_BYTES = 10 * 1024 * 1024;
 
 export function OCRScanner() {
-  const { addExpense, hydrated, saving } = useExpenses();
+  const { addExpense, expenses, hydrated, saving } = useExpenses();
   const inputRef = useRef<HTMLInputElement>(null);
   const dragDepth = useRef(0);
   const previewRef = useRef<string | null>(null);
@@ -37,12 +38,27 @@ export function OCRScanner() {
   const [draft, setDraft] = useState<ExpenseDraft | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saved, setSaved] = useState<Expense | null>(null);
+  const [quotes, setQuotes] = useState<{ key: string; notes: Record<string, PriceQuote> } | null>(null);
+  const quoteKey =
+    phase === "review" && draft
+      ? `${draft.vendor}|${draft.date}|${draft.lineItems.map((line) => `${line.id}:${line.description}:${line.unitPrice}:${line.amount}`).join("|")}`
+      : "";
 
   useEffect(() => {
     return () => {
       if (previewRef.current) URL.revokeObjectURL(previewRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!quoteKey || !draft) return;
+    const controller = new AbortController();
+    const key = quoteKey;
+    void quotesForDraft(draft, expenses).then((notes) => {
+      if (!controller.signal.aborted) setQuotes({ key, notes });
+    });
+    return () => controller.abort();
+  }, [quoteKey, draft, expenses]);
 
   useEffect(() => {
     if (phase !== "processing") return;
@@ -289,6 +305,7 @@ export function OCRScanner() {
                 onChange={setDraft}
                 errors={errors}
                 idPrefix="ocr"
+                priceNotes={quotes?.key === quoteKey ? quotes.notes : undefined}
               />
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button type="submit" className="h-11 flex-1 text-base" disabled={!hydrated || saving}>

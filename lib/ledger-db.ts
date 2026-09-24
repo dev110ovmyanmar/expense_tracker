@@ -1,3 +1,4 @@
+import { saveReceiptItems } from "@/lib/price-intel";
 import { DEFAULT_BUDGET } from "@/lib/seed";
 import { getSupabase } from "@/lib/supabase";
 import { CATEGORIES, DEFAULT_CURRENCY, type Category, type Expense, type ExpenseSource, type LineItem } from "@/types/expense";
@@ -133,6 +134,9 @@ export async function upsertExpenses(expenses: Expense[]) {
   const supabase = getSupabase();
   const { error } = await supabase.from("expenses").upsert(expenses.map((expense) => expenseToRow(expense)));
   if (error) throw new Error(friendlyError(error.message));
+  for (const expense of expenses) {
+    if (expense.source === "ocr") await saveReceiptItems(expense);
+  }
 }
 
 export async function deleteRemoteExpense(id: string) {

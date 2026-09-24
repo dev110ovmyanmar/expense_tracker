@@ -15,6 +15,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { CATEGORY_META } from "@/lib/categories";
 import { formatMoney, moneyInput, parseMoney } from "@/lib/format";
+import type { PriceQuote } from "@/lib/price-intel";
 import { lineItemsTotal, type FieldErrors } from "@/lib/validate";
 import { categoriesFor, type EntryType, type ExpenseDraft } from "@/types/expense";
 
@@ -23,11 +24,13 @@ export function ExpenseFields({
   onChange,
   errors,
   idPrefix,
+  priceNotes,
 }: {
   draft: ExpenseDraft;
   onChange: (draft: ExpenseDraft) => void;
   errors: FieldErrors;
   idPrefix: string;
+  priceNotes?: Record<string, PriceQuote>;
 }) {
   const itemsSum = lineItemsTotal(draft);
   const total = parseMoney(draft.amount);
@@ -183,19 +186,34 @@ export function ExpenseFields({
           <ul className="grid gap-2">
             {draft.lineItems.map((line, index) => (
               <li key={line.id} className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_4.5rem_7rem_8rem_auto] sm:items-center">
-                <Input
-                  aria-label={`Line ${index + 1} description`}
-                  value={line.description}
-                  onChange={(event) =>
-                    update({
-                      lineItems: draft.lineItems.map((item) =>
-                        item.id === line.id ? { ...item, description: event.target.value } : item,
-                      ),
-                    })
-                  }
-                  placeholder="Item name"
-                  className="h-10 sm:col-auto col-span-2"
-                />
+                <div className="col-span-2 grid gap-1 sm:col-auto">
+                  <Input
+                    aria-label={`Line ${index + 1} description`}
+                    value={line.description}
+                    onChange={(event) =>
+                      update({
+                        lineItems: draft.lineItems.map((item) =>
+                          item.id === line.id ? { ...item, description: event.target.value } : item,
+                        ),
+                      })
+                    }
+                    placeholder="Item name"
+                    className="h-10"
+                  />
+                  {priceNotes?.[line.id] ? (
+                    <span
+                      className={`w-fit rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        priceNotes[line.id].tone === "up"
+                          ? "bg-destructive/10 text-destructive"
+                          : priceNotes[line.id].tone === "down"
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                            : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {priceNotes[line.id].text}
+                    </span>
+                  ) : null}
+                </div>
                 <Input
                   aria-label={`Line ${index + 1} quantity`}
                   inputMode="decimal"
