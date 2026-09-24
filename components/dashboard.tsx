@@ -3,6 +3,7 @@
 import { ArrowDownLeft, ArrowUpRight, PiggyBank, Scale, ScanLine } from "lucide-react";
 import Link from "next/link";
 import { BudgetCoach } from "@/components/budget-coach";
+import { BudgetLimits } from "@/components/budget-limits";
 import { AddExpenseButton } from "@/components/ExpenseForm";
 import { PageHeader } from "@/components/page-header";
 import { useExpenses } from "@/components/expense-provider";
@@ -11,12 +12,13 @@ import { SpendingChart } from "@/components/SpendingChart";
 import { TransactionList } from "@/components/transaction-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { expensesInMonth, ofType, sortExpenses, sumAmounts } from "@/lib/expenses";
+import { budgetBarClass, budgetLevel } from "@/lib/budget-status";
+import { expensesInMonth, ofType, sortExpenses, sumAmounts, totalsByCategory } from "@/lib/expenses";
 import { formatLongDate, formatMoney, formatMonth, greeting, roundMoney } from "@/lib/format";
 import type { LucideIcon } from "lucide-react";
 
 export function Dashboard() {
-  const { expenses, budget, hydrated, recurring, goals } = useExpenses();
+  const { expenses, budget, categoryLimits, hydrated, recurring, goals, setCategoryLimit } = useExpenses();
 
   if (!hydrated) {
     return (
@@ -41,7 +43,7 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-8">
-      <BudgetCoach expenses={monthRows} budget={budget} />
+      <BudgetCoach expenses={monthRows} budget={budget} categoryLimits={categoryLimits} />
       <PageHeader
         eyebrow={formatLongDate()}
         title={greeting()}
@@ -93,8 +95,17 @@ export function Dashboard() {
           icon={PiggyBank}
           tone={over ? "warning" : "default"}
           progress={budget > 0 ? Math.min(100, (spent / budget) * 100) : undefined}
+          level={budgetLevel(spent, budget)}
         />
       </section>
+
+      <BudgetLimits
+        budget={budget}
+        spent={spent}
+        categorySpent={Object.fromEntries(totalsByCategory(monthExpenses).map((row) => [row.category, row.total]))}
+        categoryLimits={categoryLimits}
+        onLimit={setCategoryLimit}
+      />
 
       <section className="grid gap-2 sm:grid-cols-2">
         <Link href="/plan#bills" className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
@@ -169,6 +180,7 @@ function StatCard({
   icon: Icon,
   tone = "default",
   progress,
+  level,
   href,
 }: {
   label: string;
@@ -177,6 +189,7 @@ function StatCard({
   icon: LucideIcon;
   tone?: "default" | "warning" | "positive";
   progress?: number;
+  level?: ReturnType<typeof budgetLevel>;
   href?: string;
 }) {
   const body = (
@@ -209,7 +222,7 @@ function StatCard({
         {typeof progress === "number" ? (
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
-              className={`h-full rounded-full ${tone === "warning" ? "bg-destructive" : "bg-primary"}`}
+              className={`h-full rounded-full ${budgetBarClass(level ?? (tone === "warning" ? "over" : "ok"))}`}
               style={{ width: `${progress}%` }}
             />
           </div>

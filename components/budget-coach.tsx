@@ -1,14 +1,24 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { coachInsight, buildCoachSnapshot } from "@/lib/budget-coach";
+import type { CategoryLimits } from "@/lib/budget-status";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useEffect, useMemo, useState } from "react";
 import type { Expense } from "@/types/expense";
 
-export function BudgetCoach({ expenses, budget }: { expenses: Expense[]; budget: number }) {
+export function BudgetCoach({
+  expenses,
+  budget,
+  categoryLimits,
+}: {
+  expenses: Expense[];
+  budget: number;
+  categoryLimits: CategoryLimits;
+}) {
   const refreshKey = useMemo(
-    () => `${budget}:${expenses.map((expense) => `${expense.id}:${expense.amount}:${expense.date}`).join(",")}`,
-    [expenses, budget],
+    () => `${budget}:${JSON.stringify(categoryLimits)}:${expenses.map((expense) => `${expense.id}:${expense.amount}:${expense.category}:${expense.date}`).join(",")}`,
+    [expenses, budget, categoryLimits],
   );
   const [reply, setReply] = useState<{ key: string; message: string } | null>(null);
   const loading = reply?.key !== refreshKey;
@@ -22,7 +32,21 @@ export function BudgetCoach({ expenses, budget }: { expenses: Expense[]; budget:
         const token = (await getSupabase().auth.getSession()).data.session?.access_token;
         if (token) headers.Authorization = `Bearer ${token}`;
       }
-      return fetch("/api/coach", { signal: controller.signal, headers });
+      return fetch("/api/coach", {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({
+          budget,
+          categoryLimits,
+          expenses: expenses.map((expense) => ({
+            type: expense.type,
+            amount: expense.amount,
+            category: expense.category,
+            date: expense.date,
+          })),
+        }),
+      });
     })()
       .then((response) => response.json().catch(() => null))
       .then((payload: unknown) => {
@@ -32,15 +56,18 @@ export function BudgetCoach({ expenses, budget }: { expenses: Expense[]; budget:
             : "";
         setReply({
           key: refreshKey,
-          message: next || "အခု ခဏအကြံမပေးနိုင်သေးပါ။ ခဏနေပြီး ပြန်ကြည့်ပေးပါ။",
+          message: next || coachInsight(buildCoachSnapshot(expenses, budget, new Date(), categoryLimits)),
         });
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setReply({ key: refreshKey, message: "အခု ခဏအကြံမပေးနိုင်သေးပါ။ ခဏနေပြီး ပြန်ကြည့်ပေးပါ။" });
+        setReply({
+          key: refreshKey,
+          message: coachInsight(buildCoachSnapshot(expenses, budget, new Date(), categoryLimits)),
+        });
       });
     return () => controller.abort();
-  }, [refreshKey]);
+  }, [refreshKey, expenses, budget, categoryLimits]);
 
   return (
     <section

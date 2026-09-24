@@ -11,6 +11,7 @@ import { useExpenses } from "@/components/expense-provider";
 import { ThemePicker } from "@/components/theme-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { budgetBarClass, budgetLevel } from "@/lib/budget-status";
 import { expensesInMonth, ofType, sumAmounts } from "@/lib/expenses";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { formatMoney, formatMonth, moneyInput, parseMoney } from "@/lib/format";
@@ -208,7 +209,7 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className={`h-full rounded-full ${remaining < 0 && budget > 0 ? "bg-destructive" : "bg-primary"}`}
+          className={`h-full rounded-full ${budgetBarClass(budgetLevel(spent, budget))}`}
           style={{ width: `${ratio}%` }}
         />
       </div>

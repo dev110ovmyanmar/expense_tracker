@@ -14,6 +14,7 @@ import {
   removeGoal,
   removeRecurring,
   setBudget,
+  setCategoryLimit,
   setDailyReminder,
   signOut,
   subscribeLedger,
@@ -21,12 +22,14 @@ import {
   updateGoal,
   updateRecurring,
 } from "@/lib/ledger-store";
-import type { Expense, ExpenseInput } from "@/types/expense";
+import type { CategoryLimits } from "@/lib/budget-status";
+import type { Category, Expense, ExpenseInput } from "@/types/expense";
 import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
 
 interface ExpenseContextValue {
   expenses: Expense[];
   budget: number;
+  categoryLimits: CategoryLimits;
   recurring: RecurringItem[];
   goals: SavingsGoal[];
   planningMessage: string | null;
@@ -42,6 +45,7 @@ interface ExpenseContextValue {
   updateExpense: (id: string, input: ExpenseInput) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setBudget: (amount: number) => Promise<void>;
+  setCategoryLimit: (category: Category, amount: number) => Promise<void>;
   addRecurring: (input: RecurringInput) => Promise<RecurringItem>;
   updateRecurring: (id: string, input: RecurringInput) => Promise<void>;
   removeRecurring: (id: string) => Promise<void>;
@@ -68,6 +72,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     () => ({
       expenses: ledger.expenses,
       budget: ledger.budget,
+      categoryLimits: ledger.categoryLimits,
       recurring: ledger.recurring,
       goals: ledger.goals,
       planningMessage: ledger.planningMessage,
@@ -83,6 +88,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       updateExpense,
       deleteExpense,
       setBudget,
+      setCategoryLimit,
       addRecurring,
       updateRecurring,
       removeRecurring,

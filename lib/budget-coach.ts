@@ -1,3 +1,4 @@
+import { CATEGORY_BURMESE, budgetLevel, budgetPercent, type CategoryLimits } from "@/lib/budget-status";
 import { totalsByCategory } from "@/lib/expenses";
 import { formatMoney, formatMonth, roundMoney } from "@/lib/format";
 import type { Expense } from "@/types/expense";
@@ -5,6 +6,7 @@ import type { Expense } from "@/types/expense";
 export interface CoachCategory {
   name: string;
   amount: number;
+  limit: number;
 }
 
 export interface CoachSnapshot {
@@ -24,20 +26,32 @@ export interface CoachSnapshot {
 
 const DINING = new Set(["Food & Beverages", "Food"]);
 
-export function buildCoachSnapshot(expenses: Expense[], budget: number, now = new Date()): CoachSnapshot {
+export function buildCoachSnapshot(
+  expenses: Expense[],
+  budget: number,
+  now = new Date(),
+  categoryLimits: CategoryLimits = {},
+): CoachSnapshot {
   const income = roundMoney(
     expenses.filter((expense) => expense.type === "income").reduce((sum, expense) => sum + expense.amount, 0),
   );
   const spending = expenses.filter((expense) => expense.type === "expense");
   const expenseTotal = roundMoney(spending.reduce((sum, expense) => sum + expense.amount, 0));
-  const categories = totalsByCategory(spending).map((row) => ({ name: row.category, amount: row.total }));
+  const spentByName = new Map(totalsByCategory(spending).map((row) => [row.category, row.total]));
+  const names = new Set<string>([...spentByName.keys(), ...Object.keys(categoryLimits)]);
+  const categories = [...names].map((name) => ({
+    name,
+    amount: spentByName.get(name as Expense["category"]) ?? 0,
+    limit: categoryLimits[name as Expense["category"]] ?? 0,
+  }));
   const dining = roundMoney(
     categories.filter((row) => DINING.has(row.name)).reduce((sum, row) => sum + row.amount, 0),
   );
   const day = now.getDate();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const projected = day > 0 ? roundMoney((expenseTotal / day) * daysInMonth) : 0;
-  const top = categories[0];
+  const ranked = categories.sort((a, b) => b.amount - a.amount);
+  const top = ranked[0];
   return {
     month: formatMonth(now),
     day,
@@ -50,8 +64,41 @@ export function buildCoachSnapshot(expenses: Expense[], budget: number, now = ne
     dining,
     topCategory: top?.name ?? null,
     topAmount: top?.amount ?? 0,
-    categories: categories.slice(0, 6),
+    categories: ranked.slice(0, 8),
   };
+}
+
+export function coachInsight(snapshot: CoachSnapshot): string {
+  const spent = formatMoney(snapshot.expenses);
+  const earned = formatMoney(snapshot.income);
+  const limit = formatMoney(snapshot.budget);
+  const hot = snapshot.categories
+    .filter((row) => row.limit > 0 && (budgetLevel(row.amount, row.limit) === "near" || budgetLevel(row.amount, row.limit) === "over"))
+    .sort((a, b) => budgetPercent(b.amount, b.limit) - budgetPercent(a.amount, a.limit))[0];
+  const hotName = hot ? (CATEGORY_BURMESE[hot.name as keyof typeof CATEGORY_BURMESE] ?? hot.name) : "";
+
+  if (snapshot.income === 0 && snapshot.expenses === 0) {
+    return "ဒီလစာရင်းမရှိသေးပါ။ လစာ သို့မဟုတ် ဘောက်ချာတစ်ခု ထည့်ပေးပါ။ ပြီးရင် ဒီလအသုံးစရိတ်ကို ကြည့်ပြီး အားပေးစကား ပြောပေးပါမယ်။";
+  }
+  if (hot && budgetLevel(hot.amount, hot.limit) === "over") {
+    return `${hotName} အတွက် သတ်မှတ်ထားတဲ့ ${formatMoney(hot.limit)} ကို ကျော်နေပါပြီ။ စိတ်မပူပါနဲ့။ ကျန်တဲ့ရက်တွေမှာ နည်းနည်းလျှော့လိုက်ရင် ပြန်ထိန်းနိုင်ပါတယ်။`;
+  }
+  if (snapshot.budget > 0 && snapshot.expenses >= snapshot.budget) {
+    return `ဒီလအသုံးစရိတ် ${spent} က လစဉ်ဘတ်ဂျက် ${limit} ကို ရောက်နေပါပြီ။ ဝင်ငွေ ${earned} နဲ့ ညှိပြီး နောက်ထပ်အသုံးကို ဖြည်းဖြည်းချင်း လျှော့ကြည့်ပါ။`;
+  }
+  if (hot) {
+    return `${hotName} က သတ်မှတ်ချက်ရဲ့ ${budgetPercent(hot.amount, hot.limit)}% ရောက်နေပါပြီ။ ကျန်သေးတဲ့အတွက် အဆင်ပြေပါတယ်။ ဒီအတိုင်း ဂရုတစိုက် ဆက်သွားပါ။`;
+  }
+  if (snapshot.income > 0 && snapshot.expenses > snapshot.income) {
+    return `ဒီလဝင်ငွေ ${earned} ထက် အသုံး ${spent} က ပိုနေပါတယ်။ မဆိုးပါဘူး။ နောက်တစ်ခုမဝယ်ခင် ခဏစဉ်းစားလိုက်ရင် လုံလောက်ပါပြီ။`;
+  }
+  if (snapshot.budget > 0 && budgetLevel(snapshot.expenses, snapshot.budget) === "near") {
+    return `လစဉ်ဘတ်ဂျက် ${limit} ရဲ့ ${budgetPercent(snapshot.expenses, snapshot.budget)}% သုံးပြီးပါပြီ။ အရှိန်ကောင်းပါတယ်။ ကျန်တဲ့ရက်လေးတွေကို ဒီအတိုင်း ထိန်းထားပါ။`;
+  }
+  if (snapshot.expenses > 0) {
+    return `ဒီလဝင်ငွေ ${earned}၊ အသုံး ${spent} ပါ။ ဘတ်ဂျက်ထဲမှာ နေနိုင်သေးတာ ကောင်းပါတယ်။ ဒီအတိုင်း ဆက်ထိန်းထားပါ။`;
+  }
+  return `ဝင်ငွေ ${earned} ရောက်နေပါပြီ။ ပထမဆုံးအသုံးတစ်ခု မှတ်ထားလိုက်ရင် ဒီလကို အတူတူကြည့်ပေးပါမယ်။`;
 }
 
 export function localCoachMessage(snapshot: CoachSnapshot): string {

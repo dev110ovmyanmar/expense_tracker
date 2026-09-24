@@ -1,11 +1,13 @@
 import { saveReceiptItems } from "@/lib/price-intel";
 import { DEFAULT_BUDGET } from "@/lib/seed";
 import { currentUserId, getSupabase } from "@/lib/supabase";
+import { parseCategoryLimits, type CategoryLimits } from "@/lib/budget-status";
 import { CATEGORIES, DEFAULT_CURRENCY, type Category, type Expense, type ExpenseSource, type LineItem } from "@/types/expense";
 
 export interface RemoteLedger {
   expenses: Expense[];
   budget: number;
+  categoryLimits: CategoryLimits;
 }
 
 interface ExpenseRow {
@@ -76,8 +78,11 @@ function rowToExpense(row: ExpenseRow): Expense | null {
 
 const LOCKED =
   "Run supabase/migrations/005_user_auth.sql in the Supabase SQL editor, then sign in again.";
+const LIMITS_MISSING =
+  "Run supabase/migrations/006_category_budgets.sql in the Supabase SQL editor, then reload.";
 
 function friendlyError(message: string): string {
+  if (/category_limits/i.test(message)) return LIMITS_MISSING;
   if (/anonymous sign-ins are disabled/i.test(message)) return LOCKED;
   if (/row-level security|permission denied|violates foreign key/i.test(message)) return LOCKED;
   return message;
@@ -115,10 +120,21 @@ export async function fetchRemoteLedger(supabase = getSupabase()): Promise<Remot
       .order("date", { ascending: false })
       .order("created_at", { ascending: false }),
     userId
-      ? supabase.from("budgets").select("amount").eq("user_id", userId).maybeSingle()
+      ? supabase.from("budgets").select("amount, category_limits").eq("user_id", userId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
   if (expensesResult.error) throw new Error(friendlyError(expensesResult.error.message));
+  if (budgetResult.error && /category_limits/i.test(budgetResult.error.message) && userId) {
+    const plain = await supabase.from("budgets").select("amount").eq("user_id", userId).maybeSingle();
+    if (plain.error) throw new Error(friendlyError(plain.error.message));
+    const budgetValue = plain.data?.amount;
+    const budget = typeof budgetValue === "number" ? budgetValue : Number(budgetValue ?? DEFAULT_BUDGET);
+    const expenses = ((expensesResult.data ?? []) as ExpenseRow[]).flatMap((row) => {
+      const expense = rowToExpense(row);
+      return expense ? [expense] : [];
+    });
+    return { expenses, budget: Number.isFinite(budget) ? budget : DEFAULT_BUDGET, categoryLimits: {} };
+  }
   if (budgetResult.error) throw new Error(friendlyError(budgetResult.error.message));
   const expenses = ((expensesResult.data ?? []) as ExpenseRow[]).flatMap((row) => {
     const expense = rowToExpense(row);
@@ -126,7 +142,11 @@ export async function fetchRemoteLedger(supabase = getSupabase()): Promise<Remot
   });
   const budgetValue = budgetResult.data?.amount;
   const budget = typeof budgetValue === "number" ? budgetValue : Number(budgetValue ?? DEFAULT_BUDGET);
-  return { expenses, budget: Number.isFinite(budget) ? budget : DEFAULT_BUDGET };
+  return {
+    expenses,
+    budget: Number.isFinite(budget) ? budget : DEFAULT_BUDGET,
+    categoryLimits: parseCategoryLimits(budgetResult.data?.category_limits),
+  };
 }
 
 export async function upsertExpenses(expenses: Expense[]) {
@@ -146,11 +166,12 @@ export async function deleteRemoteExpense(id: string) {
   if (error) throw new Error(friendlyError(error.message));
 }
 
-export async function saveRemoteBudget(amount: number) {
+export async function saveRemoteBudget(amount: number, categoryLimits: CategoryLimits = {}) {
   const supabase = getSupabase();
   const { error } = await supabase.from("budgets").upsert({
     user_id: await currentUserId(),
     amount,
+    category_limits: categoryLimits,
     updated_at: new Date().toISOString(),
   });
   if (error) throw new Error(friendlyError(error.message));

@@ -1,3 +1,4 @@
+import { isExpenseCategory, type CategoryLimits } from "@/lib/budget-status";
 import { todayISO } from "@/lib/format";
 import {
   deleteRemoteExpense,
@@ -9,13 +10,14 @@ import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInpu
 import { scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
-import type { Expense, ExpenseInput } from "@/types/expense";
+import type { Category, Expense, ExpenseInput } from "@/types/expense";
 import { DEFAULT_CURRENCY } from "@/types/expense";
 import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
 
 export interface LedgerSnapshot {
   expenses: Expense[];
   budget: number;
+  categoryLimits: CategoryLimits;
   recurring: RecurringItem[];
   goals: SavingsGoal[];
   planningMessage: string | null;
@@ -32,6 +34,7 @@ export interface LedgerSnapshot {
 const SERVER_SNAPSHOT: LedgerSnapshot = {
   expenses: [],
   budget: DEFAULT_BUDGET,
+  categoryLimits: {},
   recurring: [],
   goals: [],
   planningMessage: null,
@@ -99,6 +102,7 @@ async function load() {
     publish({
       expenses: sortExpenses([...logged.expenses, ...ledger.expenses]),
       budget: ledger.budget,
+      categoryLimits: ledger.categoryLimits,
       recurring: logged.recurring,
       goals: planning.goals,
       planningMessage: planning.message,
@@ -232,10 +236,27 @@ export async function setBudget(amount: number) {
   const budget = Math.round(amount * 100) / 100;
   publish({ ...snapshot, saving: true });
   try {
-    await saveRemoteBudget(budget);
+    await saveRemoteBudget(budget, snapshot.categoryLimits);
     publish({ ...snapshot, budget, saving: false, storageWarning: false, storageMessage: null });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The budget could not be saved.";
+    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
+  }
+}
+
+export async function setCategoryLimit(category: Category, amount: number) {
+  if (!isExpenseCategory(category)) return;
+  requireReady();
+  const categoryLimits = { ...snapshot.categoryLimits };
+  if (!Number.isFinite(amount) || amount <= 0) delete categoryLimits[category];
+  else categoryLimits[category] = Math.round(amount * 100) / 100;
+  publish({ ...snapshot, saving: true });
+  try {
+    await saveRemoteBudget(snapshot.budget, categoryLimits);
+    publish({ ...snapshot, categoryLimits, saving: false, storageWarning: false, storageMessage: null });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The category limit could not be saved.";
     publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
     throw new Error(message);
   }
