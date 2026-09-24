@@ -31,6 +31,7 @@ interface ExpenseContextValue {
   goals: SavingsGoal[];
   planningMessage: string | null;
   userEmail: string | null;
+  userName: string | null;
   dailyReminder: boolean;
   lastReminded: string | null;
   hydrated: boolean;
@@ -71,6 +72,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       goals: ledger.goals,
       planningMessage: ledger.planningMessage,
       userEmail: ledger.userEmail,
+      userName: ledger.userName,
       dailyReminder: ledger.dailyReminder,
       lastReminded: ledger.lastReminded,
       hydrated: ledger.ready,

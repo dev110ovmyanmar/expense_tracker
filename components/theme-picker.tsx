@@ -59,9 +59,12 @@ export function ThemePicker({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className="grid gap-2">
-      <p className="text-xs text-muted-foreground">Theme</p>
-      <div className="flex gap-2" role="radiogroup" aria-label="Color theme">
+    <div className="grid gap-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11px] tracking-wide text-muted-foreground uppercase">Theme</p>
+        <p className="truncate text-[11px] text-muted-foreground">{current.name}</p>
+      </div>
+      <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label="Color theme">
         {THEMES.map((theme) => (
           <button
             key={theme.id}
@@ -71,12 +74,15 @@ export function ThemePicker({ compact = false }: { compact?: boolean }) {
             aria-label={theme.name}
             title={theme.name}
             onClick={() => choose(theme.id)}
-            className={`size-7 rounded-full ring-offset-2 ring-offset-sidebar ${theme.id === active ? "ring-2 ring-foreground" : "ring-1 ring-foreground/20"}`}
-            style={{ background: theme.swatch }}
-          />
+            className="grid h-8 place-items-center rounded-md"
+          >
+            <span
+              className={`size-5 rounded-full ${theme.id === active ? "outline outline-2 outline-offset-2 outline-primary" : "outline outline-1 outline-foreground/15"}`}
+              style={{ background: theme.swatch }}
+            />
+          </button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">{current.name}</p>
     </div>
   );
 }

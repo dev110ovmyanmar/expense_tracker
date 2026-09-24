@@ -25,7 +25,7 @@ const NAV = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { storageWarning, storageMessage, hydrated, userEmail, signOut } = useExpenses();
+  const { storageWarning, storageMessage, hydrated, userEmail, userName, signOut } = useExpenses();
   const needsAccount = isSupabaseConfigured() && hydrated && !userEmail;
 
   if (!hydrated) {
@@ -44,14 +44,23 @@ export function AppShell({ children }: { children: ReactNode }) {
             <NavLink key={item.href} {...item} active={pathname === item.href} />
           ))}
         </nav>
-        <div className="mt-auto grid gap-4 px-4 pb-5">
+        <div className="mt-auto grid gap-3 px-4 pt-2 pb-4">
           <BudgetControls />
           {userEmail ? <ReminderToggle /> : null}
-          <div className="flex items-center justify-between gap-3">
-            <p className="min-w-0 truncate text-xs text-muted-foreground">{userEmail}</p>
-            <button type="button" className="shrink-0 text-xs" onClick={() => void signOut()}>Log out</button>
+          <div className="grid gap-3 border-t border-sidebar-border pt-3">
+            {userName ? (
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-medium text-primary">
+                  {userName.slice(0, 1).toUpperCase()}
+                </span>
+                <p className="min-w-0 flex-1 truncate text-sm font-medium">{userName}</p>
+                <button type="button" className="shrink-0 text-xs text-muted-foreground" onClick={() => void signOut()}>
+                  Log out
+                </button>
+              </div>
+            ) : null}
+            <ThemePicker />
           </div>
-          <ThemePicker />
         </div>
       </aside>
 

@@ -20,6 +20,7 @@ export interface LedgerSnapshot {
   goals: SavingsGoal[];
   planningMessage: string | null;
   userEmail: string | null;
+  userName: string | null;
   dailyReminder: boolean;
   lastReminded: string | null;
   ready: boolean;
@@ -35,6 +36,7 @@ const SERVER_SNAPSHOT: LedgerSnapshot = {
   goals: [],
   planningMessage: null,
   userEmail: null,
+  userName: null,
   dailyReminder: false,
   lastReminded: null,
   ready: false,
@@ -66,6 +68,17 @@ function sortExpenses(expenses: Expense[]): Expense[] {
   });
 }
 
+function accountName(user: { email?: string | null; user_metadata?: Record<string, unknown> } | null): string | null {
+  if (!user) return null;
+  const meta = user.user_metadata ?? {};
+  for (const key of ["display_name", "full_name", "name"]) {
+    const value = meta[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  const username = user.email?.split("@")[0]?.trim();
+  return username || null;
+}
+
 function fail(message: string) {
   publish({ ...snapshot, ready: true, saving: false, storageWarning: true, storageMessage: message });
 }
@@ -90,6 +103,7 @@ async function load() {
       goals: planning.goals,
       planningMessage: planning.message,
       userEmail: userData.user?.email ?? null,
+      userName: accountName(userData.user),
       dailyReminder: settings.dailyReminder,
       lastReminded: settings.lastReminded,
       ready: true,
