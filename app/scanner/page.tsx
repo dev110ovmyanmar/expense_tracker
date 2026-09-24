@@ -12,7 +12,7 @@ export default function ScannerPage() {
       <PageHeader
         eyebrow="Receipt scanner"
         title="Read a voucher, then confirm it"
-        description="Upload a City Express slip, tea-shop bill, or other thermal receipt. Folio reads the vendor, the DD/MM date, and the Total in kyat, then lets you correct the amount before it joins the ledger."
+        description="Photograph a restaurant check or shop slip. Aura reads the vendor, the date, and the grand total in kyat, and leaves tax, service charge, and cash off the amount."
       />
       <OCRScanner />
     </div>

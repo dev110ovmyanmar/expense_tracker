@@ -29,7 +29,6 @@ export interface Expense {
   id: string;
   vendor: string;
   amount: number;
-  tax: number;
   currency: Currency;
   category: Category;
   date: string;
@@ -46,7 +45,6 @@ export interface OCRData {
   date: string;
   total: number;
   totalFound: boolean;
-  tax: number;
   paid: number | null;
   change: number | null;
   currency: Currency;
@@ -67,7 +65,6 @@ export interface ExpenseDraft {
   vendor: string;
   date: string;
   amount: string;
-  tax: string;
   category: Category;
   notes: string;
   lineItems: DraftLineItem[];
@@ -76,7 +73,6 @@ export interface ExpenseDraft {
 export interface ExpenseInput {
   vendor: string;
   amount: number;
-  tax: number;
   currency: Currency;
   category: Category;
   date: string;

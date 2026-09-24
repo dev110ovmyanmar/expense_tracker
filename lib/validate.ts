@@ -11,7 +11,7 @@ import {
 } from "@/types/expense";
 
 export type FieldErrors = Partial<
-  Record<"vendor" | "date" | "amount" | "tax" | "lineItems" | "notes", string>
+  Record<"vendor" | "date" | "amount" | "lineItems" | "notes", string>
 >;
 
 const MAX_AMOUNT = 100_000_000;
@@ -19,7 +19,6 @@ const MAX_AMOUNT = 100_000_000;
 export interface ValidatedExpense {
   vendor: string;
   amount: number;
-  tax: number;
   currency: Currency;
   category: Category;
   date: string;
@@ -32,7 +31,6 @@ export function emptyDraft(): ExpenseDraft {
     vendor: "",
     date: todayISO(),
     amount: "",
-    tax: "",
     category: "Food & Beverages",
     notes: "",
     lineItems: [],
@@ -44,7 +42,6 @@ export function draftFromExpense(expense: Expense): ExpenseDraft {
     vendor: expense.vendor,
     date: expense.date,
     amount: moneyInput(expense.amount),
-    tax: moneyInput(expense.tax),
     category: expense.category,
     notes: expense.notes,
     lineItems: expense.lineItems.map((item) => ({
@@ -60,7 +57,6 @@ export function draftFromOCR(data: OCRData): ExpenseDraft {
     vendor: data.vendor,
     date: data.date,
     amount: data.totalFound ? moneyInput(data.total) : "",
-    tax: moneyInput(data.tax),
     category: data.category,
     notes: data.notes,
     lineItems: data.lineItems.map((item) => ({
@@ -98,13 +94,6 @@ export function validateDraft(
   else if (amount <= 0) errors.amount = "The total needs to be greater than zero.";
   else if (amount > MAX_AMOUNT) errors.amount = "That total is past the ledger limit.";
 
-  const taxRaw = draft.tax.trim();
-  const tax = taxRaw === "" ? 0 : parseMoney(taxRaw);
-  if (tax === null) errors.tax = "Enter tax as a number, or leave it blank.";
-  else if (amount !== null && tax > amount) {
-    errors.tax = "Tax can't be larger than the total.";
-  }
-
   const lineItems: LineItem[] = [];
   for (const line of draft.lineItems) {
     const description = line.description.trim().replace(/\s+/g, " ");
@@ -133,7 +122,7 @@ export function validateDraft(
     errors.lineItems = "Choose a category.";
   }
 
-  if (Object.keys(errors).length > 0 || amount === null || tax === null) {
+  if (Object.keys(errors).length > 0 || amount === null) {
     return { ok: false, errors };
   }
 
@@ -142,7 +131,6 @@ export function validateDraft(
     value: {
       vendor,
       amount,
-      tax,
       currency: DEFAULT_CURRENCY,
       category: draft.category,
       date: draft.date,

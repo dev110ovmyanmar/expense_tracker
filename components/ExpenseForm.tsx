@@ -17,7 +17,7 @@ import {
 import { draftFromExpense, emptyDraft, validateDraft, type FieldErrors } from "@/lib/validate";
 import type { Expense, ExpenseDraft } from "@/types/expense";
 
-const FIELD_ORDER = ["vendor", "date", "amount", "tax", "lineItems", "notes"] as const;
+const FIELD_ORDER = ["vendor", "date", "amount", "lineItems", "notes"] as const;
 
 export function ExpenseForm({
   open,
@@ -70,7 +70,7 @@ export function ExpenseForm({
             <DialogDescription>
               {editing
                 ? "Update the charge. Scanned receipts keep their scan history."
-                : "Log a charge by hand. It shows up on the overview immediately."}
+                : "Log a charge in kyat. It shows up on the overview immediately."}
             </DialogDescription>
           </DialogHeader>
           <ExpenseFields

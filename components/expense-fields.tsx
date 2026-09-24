@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CATEGORY_META } from "@/lib/categories";
-import { formatMoney, moneyInput, parseMoney, roundMoney } from "@/lib/format";
+import { formatMoney, moneyInput, parseMoney } from "@/lib/format";
 import { lineItemsTotal, type FieldErrors } from "@/lib/validate";
 import { CATEGORIES, type ExpenseDraft } from "@/types/expense";
 
@@ -30,13 +30,13 @@ export function ExpenseFields({
   idPrefix: string;
 }) {
   const itemsSum = lineItemsTotal(draft);
-  const tax = draft.tax.trim() === "" ? 0 : parseMoney(draft.tax);
   const total = parseMoney(draft.amount);
-  const expected =
-    itemsSum !== null && tax !== null ? roundMoney(itemsSum + tax) : null;
   const reconciles =
-    expected !== null && total !== null && Math.abs(expected - total) <= 0.009;
-  const mismatches = expected !== null && total !== null && !reconciles;
+    itemsSum !== null && total !== null && Math.abs(itemsSum - total) <= 0.009;
+  const linesShort =
+    itemsSum !== null && total !== null && itemsSum + 0.009 < total;
+  const linesOver =
+    itemsSum !== null && total !== null && itemsSum > total + 0.009;
 
   function update(partial: Partial<ExpenseDraft>) {
     onChange({ ...draft, ...partial });
@@ -95,8 +95,8 @@ export function ExpenseFields({
             </SelectContent>
           </Select>
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor={`${idPrefix}-amount`}>Total amount</Label>
+        <div className="grid gap-2 sm:col-span-2">
+          <Label htmlFor={`${idPrefix}-amount`}>Amount</Label>
           <div className="relative">
             <Input
               id={`${idPrefix}-amount`}
@@ -105,39 +105,23 @@ export function ExpenseFields({
               onChange={(event) => update({ amount: event.target.value })}
               placeholder="1,650"
               aria-invalid={Boolean(errors.amount)}
-              className="h-10 pr-12 font-mono"
+              className="h-12 pr-14 font-mono text-lg"
             />
-            <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
+            <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-sm text-muted-foreground">
               Ks
             </span>
           </div>
           {errors.amount ? (
             <FieldError>{errors.amount}</FieldError>
           ) : total !== null ? (
-            <p className="text-xs text-muted-foreground">Saves as {formatMoney(total)}. Edit this if the scan grabbed cash or change.</p>
+            <p className="text-xs text-muted-foreground">
+              Saves as {formatMoney(total)}. Use the grand total, not cash, change, or tax.
+            </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Myanmar kyat. Commas are optional, for example 1,650 or 1,650 Ks.
+              Myanmar kyat. Commas are optional, for example 1,650 or 86,400 Ks.
             </p>
           )}
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor={`${idPrefix}-tax`}>Tax</Label>
-          <div className="relative">
-            <Input
-              id={`${idPrefix}-tax`}
-              inputMode="decimal"
-              value={draft.tax}
-              onChange={(event) => update({ tax: event.target.value })}
-              placeholder="0"
-              aria-invalid={Boolean(errors.tax)}
-              className="h-10 pr-12 font-mono"
-            />
-            <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
-              Ks
-            </span>
-          </div>
-          {errors.tax ? <FieldError>{errors.tax}</FieldError> : null}
         </div>
       </div>
 
@@ -214,21 +198,24 @@ export function ExpenseFields({
         {errors.lineItems ? <FieldError>{errors.lineItems}</FieldError> : null}
         {reconciles ? (
           <p className="rounded-lg bg-primary/10 px-3 py-2 text-xs text-foreground">
-            Line items plus tax match the total of {formatMoney(total ?? 0)}.
+            Line items match {formatMoney(total ?? 0)}.
           </p>
         ) : null}
-        {mismatches && expected !== null ? (
+        {linesShort && itemsSum !== null ? (
+          <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+            Dishes add up to {formatMoney(itemsSum)}. Service charge and tax stay inside the amount.
+          </p>
+        ) : null}
+        {linesOver && itemsSum !== null ? (
           <div className="flex flex-col gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Line items plus tax come to {formatMoney(expected)}, which differs from the total.
-            </p>
+            <p>Line items come to {formatMoney(itemsSum)}, which is above the amount.</p>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => update({ amount: moneyInput(expected) })}
+              onClick={() => update({ amount: moneyInput(itemsSum) })}
             >
-              Use {formatMoney(expected)}
+              Use {formatMoney(itemsSum)}
             </Button>
           </div>
         ) : null}

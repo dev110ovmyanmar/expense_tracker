@@ -24,8 +24,8 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: "Folio",
-    template: "%s · Folio",
+    default: "Aura",
+    template: "%s · Aura",
   },
   description:
     "A daily personal expense ledger with a receipt scanner you review before anything is saved.",

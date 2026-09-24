@@ -142,7 +142,7 @@
   }
 }
 
-@keyframes folio-scan {
+@keyframes aura-scan {
   0% {
     top: 6%;
   }
@@ -151,6 +151,6 @@
   }
 }
 
-.folio-scanline {
-  animation: folio-scan 1.7s ease-in-out infinite;
+.aura-scanline {
+  animation: aura-scan 1.7s ease-in-out infinite;
 }

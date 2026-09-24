@@ -6,7 +6,6 @@ export const DEFAULT_BUDGET = 500_000;
 interface SeedInput {
   vendor: string;
   amount: number;
-  tax: number;
   category: Category;
   notes: string;
   source: ExpenseSource;
@@ -18,7 +17,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "City Express",
     amount: 8500,
-    tax: 0,
     category: "Groceries",
     notes: "Drinks and snacks from the Kabar Aye branch",
     source: "ocr",
@@ -32,7 +30,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "Shwe Oh Tea Shop",
     amount: 1500,
-    tax: 0,
     category: "Food & Beverages",
     notes: "Milk tea and paratha in Sanchaung",
     source: "manual",
@@ -45,7 +42,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "YBS Bus",
     amount: 600,
-    tax: 0,
     category: "Transport",
     notes: "Two rides downtown",
     source: "manual",
@@ -55,7 +51,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "Grab",
     amount: 6500,
-    tax: 0,
     category: "Transport",
     notes: "Evening ride home from Junction City",
     source: "ocr",
@@ -65,7 +60,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "YESC",
     amount: 45000,
-    tax: 0,
     category: "Utilities",
     notes: "Residential electricity bill",
     source: "ocr",
@@ -75,7 +69,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "Junction Cinema",
     amount: 12000,
-    tax: 0,
     category: "Entertainment",
     notes: "Two evening tickets",
     source: "manual",
@@ -85,7 +78,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "Atom",
     amount: 35000,
-    tax: 0,
     category: "Utilities",
     notes: "Monthly fiber",
     source: "manual",
@@ -95,7 +87,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "City Mart",
     amount: 42000,
-    tax: 0,
     category: "Groceries",
     notes: "Weekly groceries",
     source: "ocr",
@@ -109,7 +100,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "City Pharmacy",
     amount: 7800,
-    tax: 0,
     category: "Health",
     notes: "Cold medicine",
     source: "ocr",
@@ -119,7 +109,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "Sein Daw Market",
     amount: 18500,
-    tax: 0,
     category: "Groceries",
     notes: "Morning market run",
     source: "manual",
@@ -132,7 +121,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "Rangoon Tea House",
     amount: 2200,
-    tax: 0,
     category: "Food & Beverages",
     notes: "Evening tea",
     source: "manual",
@@ -142,7 +130,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "Denko",
     amount: 25000,
-    tax: 0,
     category: "Transport",
     notes: "Fuel on the way to Thanlyin",
     source: "ocr",
@@ -152,7 +139,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "People's Park Show",
     amount: 20000,
-    tax: 0,
     category: "Entertainment",
     notes: "Saturday tickets",
     source: "manual",
@@ -162,7 +148,6 @@ const SEED: SeedInput[] = [
   {
     vendor: "City Home",
     amount: 15000,
-    tax: 0,
     category: "Housing",
     notes: "Bulbs and a broom",
     source: "manual",
@@ -190,7 +175,6 @@ export function createSeedExpenses(): Expense[] {
       id,
       vendor: entry.vendor,
       amount: entry.amount,
-      tax: entry.tax,
       currency: DEFAULT_CURRENCY,
       category: entry.category,
       date,

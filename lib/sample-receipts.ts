@@ -60,6 +60,29 @@ export function getSampleReceipts(): SampleReceipt[] {
     "Paid By: Cash",
   ];
 
+  const beerFactory = [
+    "tbf live",
+    "The Beer Factory Live",
+    "CHECK",
+    "No.: 2524000165",
+    "Date: 17/10/2025 (20:36 - 22:06)",
+    "Table: S7",
+    "Waitstaff: Eingyin",
+    "Cashier: TBF Live",
+    "TUBORG BIG (5 MUG) 1 30,000 30,000",
+    "LAVENDER LIFT 1 15,000 15,000",
+    "French Fries 1 12,900 12,900",
+    "TUBORG BIG GLS 2 6,500 13,000",
+    "WATER 1 3,900 3,900",
+    "Subtotal 74,800 Ks",
+    "Service charge (10%) 7,480 Ks",
+    "Tax (5%) 4,114 Ks",
+    "Total before Tax 82,280 Ks",
+    "Total 86,394 Ks",
+    "Rounding 6 Ks",
+    "Grand Total 86,400 Ks",
+  ];
+
   const teaShop = [
     "SHWE OH TEA SHOP",
     "Sanchaung, Yangon",
@@ -83,6 +106,12 @@ export function getSampleReceipts(): SampleReceipt[] {
       label: "Tea shop",
       description: "Shwe Oh, total 1,500 Ks",
       file: svgFile("shwe-oh-tea.svg", renderThermal(teaShop)),
+    },
+    {
+      id: "beer-factory",
+      label: "Beer Factory",
+      description: "Restaurant check, grand total 86,400 Ks",
+      file: svgFile("tbf-live-check.svg", renderThermal(beerFactory)),
     },
   ];
 }

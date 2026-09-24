@@ -1,7 +1,8 @@
 import { DEFAULT_BUDGET } from "@/lib/seed";
 import { CATEGORIES, DEFAULT_CURRENCY, type Category, type Expense, type ExpenseSource, type LineItem } from "@/types/expense";
 
-export const STORAGE_KEY = "folio.ledger.v2";
+export const STORAGE_KEY = "aura.ledger.v1";
+const LEGACY_KEYS = ["folio.ledger.v2", "folio.ledger.v1"];
 
 export interface PersistedLedger {
   expenses: Expense[];
@@ -45,14 +46,12 @@ function sanitizeExpense(value: unknown): Expense | null {
     typeof value.id === "string" && value.id
       ? value.id
       : `expense-${date}-${vendor.toLowerCase().replace(/\s+/g, "-")}`;
-  const tax = typeof value.tax === "number" && Number.isFinite(value.tax) ? Math.max(0, value.tax) : 0;
   const createdAt = typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString();
   const updatedAt = typeof value.updatedAt === "string" ? value.updatedAt : createdAt;
   return {
     id,
     vendor,
     amount: Math.round(amount * 100) / 100,
-    tax: Math.min(Math.round(tax * 100) / 100, Math.round(amount * 100) / 100),
     currency: DEFAULT_CURRENCY,
     category: value.category,
     date,
@@ -67,7 +66,10 @@ function sanitizeExpense(value: unknown): Expense | null {
 
 export function readLedger(): PersistedLedger | null {
   if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  const raw =
+    window.localStorage.getItem(STORAGE_KEY) ??
+    LEGACY_KEYS.map((key) => window.localStorage.getItem(key)).find((value) => value) ??
+    null;
   if (!raw) return null;
   try {
     const parsed: unknown = JSON.parse(raw);

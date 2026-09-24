@@ -137,9 +137,6 @@ export function TransactionList({
                           ))}
                         </ul>
                       ) : null}
-                      {expense.tax > 0 ? (
-                        <p className="text-xs text-muted-foreground">Tax {formatMoney(expense.tax)}</p>
-                      ) : null}
                     </div>
                   ) : null}
                 </div>

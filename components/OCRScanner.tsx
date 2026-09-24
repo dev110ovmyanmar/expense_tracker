@@ -25,7 +25,7 @@ import type { Expense, ExpenseDraft, OCRData } from "@/types/expense";
 type Phase = "idle" | "processing" | "review" | "saved";
 type PreviewKind = "image" | "pdf";
 
-const FIELD_ORDER = ["vendor", "date", "amount", "tax", "lineItems", "notes"] as const;
+const FIELD_ORDER = ["vendor", "date", "amount", "lineItems", "notes"] as const;
 const MAX_BYTES = 10 * 1024 * 1024;
 
 export function OCRScanner() {
@@ -209,7 +209,7 @@ export function OCRScanner() {
         <CardContent className="grid gap-6 lg:grid-cols-[280px_1fr]">
           <div className="relative overflow-hidden rounded-xl bg-muted">
             <ReceiptPreview url={previewUrl} kind={previewKind} name={fileName} />
-            <div className="folio-scanline pointer-events-none absolute inset-x-4 h-px bg-primary shadow-[0_0_16px_var(--primary)]" />
+            <div className="aura-scanline pointer-events-none absolute inset-x-4 h-px bg-primary shadow-[0_0_16px_var(--primary)]" />
           </div>
           <div className="space-y-5">
             <div
@@ -260,7 +260,7 @@ export function OCRScanner() {
   if (phase === "review" && previewUrl && draft && ocr) {
     const confidence = Math.round(ocr.confidence * 100);
     return (
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         <Card>
           <CardHeader>
             <CardTitle>Receipt</CardTitle>
@@ -350,8 +350,8 @@ export function OCRScanner() {
           </span>
           <h2 className="mt-4 font-heading text-2xl tracking-tight">Drop a receipt or voucher</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-            PNG, JPG, WEBP, SVG, or PDF. Folio reads kyat totals from the print, then opens the
-            receipt beside fields you can correct before they join the ledger.
+            PNG, JPG, WEBP, SVG, or PDF. Aura reads the print and fills the grand total in kyat.
+            Correct the amount before it joins the ledger.
           </p>
           <Button asChild className="mt-5 h-10">
             <label htmlFor="receipt-upload">
@@ -360,7 +360,7 @@ export function OCRScanner() {
             </label>
           </Button>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           {samples.map((sample) => (
             <button
               key={sample.id}

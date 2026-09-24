@@ -100,10 +100,10 @@ function Brand() {
   return (
     <Link href="/" className="flex items-center gap-2.5">
       <span className="grid size-8 place-items-center rounded-lg bg-primary font-heading text-lg text-primary-foreground">
-        F
+        A
       </span>
       <span>
-        <span className="block font-heading text-lg leading-none">Folio</span>
+        <span className="block font-heading text-lg leading-none">Aura</span>
         <span className="text-[11px] text-muted-foreground">Personal ledger</span>
       </span>
     </Link>

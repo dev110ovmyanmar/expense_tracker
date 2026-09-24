@@ -8,11 +8,11 @@ export const OCR_STEPS = [
   },
   {
     title: "Detecting vendor & totals",
-    detail: "Finding the shop, date, and the Total line in kyat",
+    detail: "Finding the shop, date, and the grand total in kyat",
   },
   {
     title: "Parsing line items & category",
-    detail: "Keeping cash tendered and change off the expense total",
+    detail: "Leaving cash, change, and tax off the amount you save",
   },
 ] as const;
 
@@ -28,12 +28,22 @@ export function fileKind(file: File): "image" | "pdf" | null {
   return null;
 }
 
+async function readPhotoText(file: File): Promise<string> {
+  const body = new FormData();
+  body.append("file", file);
+  const response = await fetch("/api/ocr", { method: "POST", body });
+  if (!response.ok) return "";
+  const payload: unknown = await response.json();
+  if (typeof payload !== "object" || payload === null || !("text" in payload)) return "";
+  return typeof payload.text === "string" ? payload.text : "";
+}
+
 async function readReceiptSource(file: File): Promise<string> {
   const name = file.name.toLowerCase();
   const isSvg = file.type.includes("svg") || name.endsWith(".svg");
   const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
   const isText = file.type.startsWith("text/") || name.endsWith(".txt");
-  if (!isSvg && !isPdf && !isText) return "";
+  if (!isSvg && !isPdf && !isText) return readPhotoText(file);
 
   if (isPdf) {
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -61,7 +71,6 @@ function toOCRData(fileName: string, source: string): OCRData {
     date: parsed.date,
     total: parsed.total ?? 0,
     totalFound: parsed.totalFound,
-    tax: parsed.tax,
     paid: parsed.paid,
     change: parsed.change,
     currency: parsed.currency || DEFAULT_CURRENCY,

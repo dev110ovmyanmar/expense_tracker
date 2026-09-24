@@ -5,7 +5,6 @@ export interface ParsedReceipt {
   vendor: string;
   date: string;
   total: number | null;
-  tax: number;
   paid: number | null;
   change: number | null;
   currency: Currency;
@@ -21,7 +20,15 @@ const AMOUNT_RE =
 
 const DATE_RE = /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/;
 
-type LineKind = "total" | "subtotal" | "tax" | "paid" | "change" | "paidBy" | "skip" | "item";
+type LineKind =
+  | "grand"
+  | "total"
+  | "subtotal"
+  | "paid"
+  | "change"
+  | "paidBy"
+  | "skip"
+  | "item";
 
 function parseAmountToken(whole: string, fraction?: string): number | null {
   const digits = whole.replace(/,/g, "");
@@ -31,9 +38,13 @@ function parseAmountToken(whole: string, fraction?: string): number | null {
   return roundMoney(value);
 }
 
+function amountPattern(): RegExp {
+  return new RegExp(AMOUNT_RE.source, "gi");
+}
+
 function amountsIn(line: string): number[] {
   const found: number[] = [];
-  for (const match of line.matchAll(AMOUNT_RE)) {
+  for (const match of line.matchAll(amountPattern())) {
     const value = parseAmountToken(match[1] ?? "", match[2]);
     if (value !== null) found.push(value);
   }
@@ -56,18 +67,26 @@ function titleCase(value: string): string {
 function classify(line: string): LineKind {
   const normalized = line.replace(/\s+/g, " ").trim();
   if (!normalized) return "skip";
-  if (/^(thank you|thanks|welcome|have a nice day)\b/i.test(normalized)) return "skip";
-  if (/^(tel|phone|ph|mobile|hotline|cashier|served by|terminal|inv|invoice no|receipt no|bill no)\b/i.test(normalized)) {
+  if (/^(thank you|thanks|welcome|have a nice day|check|receipt|invoice|bill)\b/i.test(normalized)) return "skip";
+  if (
+    /^(tel|phone|ph|mobile|hotline|cashier|served by|waitstaff|waiter|server|table|guest|terminal|date|time|inv|invoice no|receipt no|bill no|no\.?)\b/i.test(
+      normalized,
+    )
+  ) {
     return "skip";
   }
   if (/^paid\s*by\b/i.test(normalized)) return "paidBy";
   if (/^(change|changed|change\s*due)\b/i.test(normalized)) return "change";
   if (/^sub[\s-]*total\b/i.test(normalized)) return "subtotal";
-  if (/^(tax|vat|commercial\s*tax|gst)\b/i.test(normalized)) return "tax";
+  if (/^(service\s*charge|svc\.?\s*ch|rounding|round\s*off|tax|vat|commercial\s*tax|gst)\b/i.test(normalized)) {
+    return "skip";
+  }
+  if (/^total\s+before\b/i.test(normalized)) return "skip";
   if (/^(cash\s*tendered|cash\s*received|amount\s*paid|amount\s*tendered|tendered|tender|paid|cash(?!ier))\b/i.test(normalized)) {
     return "paid";
   }
-  if (/^(grand\s*total|net\s*total|amount\s*due|balance\s*due|total\s*amount|total\s*due|total)\b/i.test(normalized)) {
+  if (/^grand\s*total\b/i.test(normalized)) return "grand";
+  if (/^(net\s*total|amount\s*due|balance\s*due|total\s*amount|total\s*due|total)\b/i.test(normalized)) {
     return "total";
   }
   return "item";
@@ -93,10 +112,29 @@ function inferCategory(vendor: string, text: string): Category {
   if (/city\s*express|city\s*mart|mini\s*mart|minimart|convenience|grocery|grocer|supermarket|market/.test(blob)) {
     return "Groceries";
   }
-  if (/tea|cafe|coffee|restaurant|food|beverage|bakery|noodle|mohinga/.test(blob)) {
+  if (/tea|cafe|coffee|restaurant|food|beverage|bakery|noodle|mohinga|beer|bar\b|pub\b/.test(blob)) {
     return "Food & Beverages";
   }
   return "Food & Beverages";
+}
+
+function pickVendor(lines: string[]): string {
+  const candidates = lines.filter((line) => {
+    if (classify(line) !== "item") return false;
+    if (isHeaderNoise(line) || amountsIn(line).length > 0) return false;
+    const letters = line.match(/[A-Za-z\u1000-\u109F]/g)?.length ?? 0;
+    return letters >= 3 && letters / line.length > 0.6;
+  });
+  const named = candidates.find((line) =>
+    /beer factory|city express|city mart|tea shop|tea house/i.test(line),
+  );
+  const chosen = named ?? candidates.sort((a, b) => b.length - a.length)[0] ?? "";
+  return titleCase(
+    chosen
+      .replace(/[^A-Za-z\u1000-\u109F &.'-]+$/g, "")
+      .replace(/\s+[A-Za-z]$/g, "")
+      .trim(),
+  );
 }
 
 function vendorFromFileName(fileName: string): string {
@@ -110,18 +148,22 @@ function vendorFromFileName(fileName: string): string {
 }
 
 function isHeaderNoise(line: string): boolean {
-  return /^(no\.?\s*\d|yangon|mandalay|sanchaung|bahan|kamayut|tel\b|phone\b|address\b)/i.test(line);
+  return /^(no\.?\s*\d|yangon|mandalay|sanchaung|bahan|kamayut|tel\b|phone\b|address\b|unit\b|terminal\b|fb\.?\s*com)/i.test(
+    line,
+  );
 }
 
 function itemFromLine(line: string): { description: string; amount: number } | null {
-  const matches = [...line.matchAll(AMOUNT_RE)];
+  const withoutAsides = line.replace(/\([^)]*\)/g, " ");
+  const matches = [...withoutAsides.matchAll(amountPattern())];
   if (!matches.length) return null;
   const last = matches[matches.length - 1];
   const amount = parseAmountToken(last[1] ?? "", last[2]);
-  if (amount === null || amount <= 0) return null;
-  let description = line.slice(0, last.index ?? 0).replace(/[\s:.\-]+$/g, "").trim();
-  description = description.replace(/\s+\d{1,3}$/g, "").trim();
-  if (!/[A-Za-z\u1000-\u109F]/.test(description)) return null;
+  if (amount === null || amount < 50) return null;
+  let description = withoutAsides.slice(0, last.index ?? 0).replace(/[\s:.\-|]+$/g, "").trim();
+  description = description.replace(/(?:\s+\d{1,3}(?:,\d{3})*)+\s*$/g, "").trim();
+  const letters = description.match(/[A-Za-z\u1000-\u109F]/g)?.length ?? 0;
+  if (letters < 3 || letters / Math.max(description.length, 1) < 0.45) return null;
   if (description.length > 80) description = description.slice(0, 80);
   return { description: description.replace(/\s+/g, " "), amount };
 }
@@ -142,8 +184,8 @@ export function parseReceiptText(source: string, fileName = ""): ParsedReceipt {
   let vendor = "";
   let date = "";
   let total: number | null = null;
+  let grand: number | null = null;
   let subtotal: number | null = null;
-  let tax = 0;
   let paid: number | null = null;
   let change: number | null = null;
   let paidBy = "";
@@ -172,47 +214,49 @@ export function parseReceiptText(source: string, fileName = ""): ParsedReceipt {
       itemsStarted = true;
       continue;
     }
-    if (kind === "tax") {
-      const amount = lastAmount(line);
-      if (amount !== null) tax = amount;
-      itemsStarted = true;
-      continue;
-    }
     if (kind === "subtotal") {
       const amount = lastAmount(line);
       if (amount !== null) subtotal = amount;
       itemsStarted = true;
       continue;
     }
-    if (kind === "total") {
+    if (kind === "grand") {
       const amount = lastAmount(line);
-      if (amount !== null) total = amount;
+      if (amount !== null) grand = amount;
       itemsStarted = true;
       continue;
     }
-    if (kind === "skip") continue;
+    if (kind === "total") {
+      const amount = lastAmount(line);
+      if (amount !== null && grand === null) total = amount;
+      itemsStarted = true;
+      continue;
+    }
+    if (kind === "skip") {
+      if (foundDate) itemsStarted = true;
+      continue;
+    }
 
     if (!itemsStarted) {
       if (foundDate) {
         itemsStarted = true;
         continue;
       }
-      if (!vendor && !isHeaderNoise(line) && /[A-Za-z\u1000-\u109F]{3,}/.test(line) && !amountsIn(line).length) {
-        vendor = titleCase(line);
-      }
       continue;
     }
 
     if (foundDate && amountsIn(line).length === 0) continue;
+    if (/no\.?\s*\d|road|street|pagoda|tower|yangon|phone|fb\.?\s*com/i.test(line)) continue;
     const item = itemFromLine(line);
     if (item) lineItems.push(item);
   }
 
-  if (!vendor) vendor = vendorFromFileName(fileName);
+  if (!vendor) vendor = pickVendor(lines) || vendorFromFileName(fileName);
 
+  if (grand !== null) total = grand;
   let totalFound = total !== null;
   if (!totalFound && subtotal !== null) {
-    total = roundMoney(subtotal + tax);
+    total = subtotal;
     totalFound = true;
   }
 
@@ -236,7 +280,6 @@ export function parseReceiptText(source: string, fileName = ""): ParsedReceipt {
     vendor: vendor || "Local shop",
     date: date || todayISO(),
     total: totalFound ? total : null,
-    tax,
     paid,
     change,
     currency: DEFAULT_CURRENCY,
@@ -291,7 +334,6 @@ export function fallbackReceipt(fileName = ""): ParsedReceipt {
     vendor: vendor || "Local shop",
     date: todayISO(),
     total: null,
-    tax: 0,
     paid: null,
     change: null,
     currency: DEFAULT_CURRENCY,
