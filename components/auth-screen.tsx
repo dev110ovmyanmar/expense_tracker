@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { getSupabase } from "@/lib/supabase";
 
 export function AuthScreen() {
-  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [mode, setMode] = useState<"sign-in" | "sign-up" | "reset">("sign-in");
   const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +22,44 @@ export function AuthScreen() {
           <p className="font-heading text-3xl">Aura</p>
           <p className="mt-1 text-sm text-muted-foreground">Your ledger stays on your account.</p>
         </div>
+        {mode === "reset" ? (
+          <form
+            className="grid gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!email.trim()) {
+                setNotice("Add the email on the account.");
+                return;
+              }
+              setBusy(true);
+              setNotice("");
+              const redirectTo = `${window.location.origin}/reset-password`;
+              void getSupabase().auth.resetPasswordForEmail(email.trim(), { redirectTo }).then(({ error }) => {
+                setBusy(false);
+                if (error) {
+                  setNotice(error.message);
+                  return;
+                }
+                toast.success("Reset link sent.");
+                setNotice("Check that email for a link to choose a new password.");
+              });
+            }}
+          >
+            <div className="grid gap-1.5">
+              <Label htmlFor="auth-email">Email</Label>
+              <Input id="auth-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="h-11" />
+            </div>
+            {notice ? <p className={`text-sm ${notice.startsWith("Check that email") ? "text-muted-foreground" : "text-destructive"}`}>{notice}</p> : null}
+            <Button type="submit" className="min-h-11" disabled={busy}>
+              {busy ? "Please wait…" : "Send reset link"}
+            </Button>
+            <button type="button" className="text-sm text-muted-foreground" onClick={() => { setMode("sign-in"); setNotice(""); }}>
+              Back to sign in
+            </button>
+          </form>
+        ) : null}
+        {mode !== "reset" ? (
+        <>
         <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
           {(["sign-in", "sign-up"] as const).map((value) => (
             <button
@@ -95,11 +133,18 @@ export function AuthScreen() {
             <Label htmlFor="auth-password">Password</Label>
             <Input id="auth-password" type="password" autoComplete={mode === "sign-in" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} className="h-11" />
           </div>
+          {mode === "sign-in" ? (
+            <button type="button" className="justify-self-start text-sm text-muted-foreground" onClick={() => { setMode("reset"); setNotice(""); }}>
+              Forgot password?
+            </button>
+          ) : null}
           {notice ? <p className="text-sm text-destructive">{notice}</p> : null}
           <Button type="submit" className="min-h-11" disabled={busy}>
             {busy ? "Please wait…" : mode === "sign-in" ? "Sign in" : "Create account"}
           </Button>
         </form>
+        </>
+        ) : null}
       </div>
     </div>
   );

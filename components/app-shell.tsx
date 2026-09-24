@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, LayoutDashboard, ScanLine, Wallet } from "lucide-react";
+import { BookOpen, LayoutDashboard, ScanLine, UserRound, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -27,7 +27,7 @@ const NAV = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { storageWarning, storageMessage, hydrated, userEmail, userName, signOut } = useExpenses();
-  const needsAccount = isSupabaseConfigured() && hydrated && !userEmail;
+  const needsAccount = isSupabaseConfigured() && hydrated && !userEmail && pathname !== "/reset-password";
 
   if (!hydrated) {
     return <div className="grid min-h-svh place-items-center text-sm text-muted-foreground">Loading…</div>;
@@ -44,6 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {NAV.map((item) => (
             <NavLink key={item.href} {...item} active={pathname === item.href} />
           ))}
+          <NavLink href="/profile" label="Profile" icon={UserRound} active={pathname === "/profile"} />
         </nav>
         <div className="mt-auto grid gap-3 px-4 pt-2 pb-4">
           <BudgetControls />
@@ -51,15 +52,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="grid gap-3 border-t border-sidebar-border pt-3">
             {userName ? (
               <div className="flex items-center gap-2.5">
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-medium text-primary">
+                <Link href="/profile" className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-medium text-primary">
                   {userName.slice(0, 1).toUpperCase()}
-                </span>
-                <p className="min-w-0 flex-1 truncate text-sm font-medium">{userName}</p>
+                </Link>
+                <Link href="/profile" className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {userName}
+                </Link>
                 <button type="button" className="shrink-0 text-xs text-muted-foreground" onClick={() => void signOut()}>
                   Log out
                 </button>
               </div>
-            ) : null}
+            ) : (
+              <Link href="/profile" className="text-sm text-muted-foreground">Profile</Link>
+            )}
             <ThemePicker />
           </div>
         </div>
@@ -69,7 +74,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/85 px-4 py-3 backdrop-blur md:hidden">
           <Brand />
           <div className="flex items-center gap-3">
-            {userName ? <p className="max-w-28 truncate text-sm font-medium">{userName}</p> : null}
+            <Link href="/profile" className="max-w-28 truncate text-sm font-medium">
+              {userName ?? "Profile"}
+            </Link>
             {userEmail ? (
               <button type="button" className="text-xs text-muted-foreground" onClick={() => void signOut()}>Log out</button>
             ) : null}

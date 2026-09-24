@@ -437,6 +437,22 @@ export async function markReminded(day: string) {
   }
 }
 
+export async function updateDisplayName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Add a user name.");
+  if (trimmed.length > 40) throw new Error("Keep the user name under 40 characters.");
+  if (!isSupabaseConfigured()) throw new Error(MISSING);
+  const { data, error } = await getSupabase().auth.updateUser({
+    data: { full_name: trimmed, user_name: trimmed },
+  });
+  if (error) throw new Error(error.message);
+  publish({
+    ...snapshot,
+    userName: accountName(data.user) ?? trimmed,
+    userEmail: data.user?.email ?? snapshot.userEmail,
+  });
+}
+
 export async function signOut() {
   if (!isSupabaseConfigured()) return;
   await getSupabase().auth.signOut();

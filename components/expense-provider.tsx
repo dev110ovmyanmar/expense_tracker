@@ -18,6 +18,7 @@ import {
   setDailyReminder,
   signOut,
   subscribeLedger,
+  updateDisplayName,
   updateExpense,
   updateGoal,
   updateRecurring,
@@ -57,6 +58,7 @@ interface ExpenseContextValue {
   setDailyReminder: (enabled: boolean) => Promise<void>;
   markReminded: (day: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updateDisplayName: (name: string) => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -100,6 +102,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       setDailyReminder,
       markReminded,
       signOut,
+      updateDisplayName,
     }),
     [ledger],
   );
