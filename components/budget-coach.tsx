@@ -36,15 +36,15 @@ export function BudgetCoach({ expenses, budget }: { expenses: Expense[]; budget:
   return (
     <section
       aria-live="polite"
-      className="flex items-start gap-3 rounded-2xl bg-card px-4 py-4 ring-1 ring-primary/20"
+      className="flex items-start gap-3 rounded-3xl bg-[oklch(0.95_0.025_78)] px-4 py-4 ring-1 ring-primary/20 dark:bg-[oklch(0.32_0.03_55)]"
     >
-      <span className="aura-coach-glow grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+      <span className="aura-coach-glow grid size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
         <Sparkles className="size-4" />
       </span>
       <div className="min-w-0">
         <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Vibe coach</p>
-        <p className="mt-1 text-sm leading-6">{message}</p>
-        <p className="mt-1 text-[11px] text-muted-foreground">{live ? "Tuned to this month" : "Reading this month"}</p>
+        <p className="mt-1 text-sm leading-7">{message}</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">{live ? "ဒီလအတိုင်း ပြောထားတယ်" : "ဒီလကို ကြည့်နေတယ်"}</p>
       </div>
     </section>
   );

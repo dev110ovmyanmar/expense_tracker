@@ -47,6 +47,7 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-8">
+      <BudgetCoach expenses={monthRows} budget={budget} />
       <PageHeader
         eyebrow={formatLongDate()}
         title={greeting()}
@@ -64,8 +65,6 @@ export function Dashboard() {
           </>
         }
       />
-
-      <BudgetCoach expenses={monthRows} budget={budget} />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

@@ -17,8 +17,9 @@ function isSnapshot(value: unknown): value is CoachSnapshot {
 
 function clip(text: string): string {
   const clean = text.replace(/\s+/g, " ").replace(/^["']|["']$/g, "").trim();
-  if (clean.length <= 280) return clean;
-  return `${clean.slice(0, 277).trim()}…`;
+  if (!/[\u1000-\u109F]/.test(clean)) return "";
+  if (clean.length <= 360) return clean;
+  return `${clean.slice(0, 357).trim()}…`;
 }
 
 function brief(snapshot: CoachSnapshot): string {
@@ -46,7 +47,7 @@ async function askGemini(key: string, snapshot: CoachSnapshot): Promise<string> 
         systemInstruction: {
           parts: [
             {
-              text: "You are Aura, a casual budget coach. Write one or two short sentences. Friendly and playful. No markdown, no lists, no emojis. Repeat amounts exactly as written, including Ks. If dining is the biggest spike, tease it lightly without inventing dishes or restaurants. If the month is empty, invite a salary or a receipt. Do not invent purchases.",
+              text: "You are Aura, a warm Burmese friend who coaches a personal budget. Reply with one or two short sentences in casual spoken Burmese (Myanmar script) only. No English sentences, no markdown, no lists, no emojis. Keep every amount exactly as written, including Ks. If spending is on pace to pass the budget, tease them lightly. If they are under budget, praise them. If income is missing, remind them to log this month's salary. If the month is empty, invite a salary or a receipt. Do not invent purchases.",
             },
           ],
         },
@@ -70,14 +71,14 @@ async function askGemini(key: string, snapshot: CoachSnapshot): Promise<string> 
 export async function POST(request: Request) {
   const body: unknown = await request.json().catch(() => null);
   if (!isSnapshot(body)) {
-    return Response.json({ message: "I need this month’s income and expenses before I can coach." }, { status: 400 });
+    return Response.json({ message: "ဒီလ ဝင်ငွေနဲ့ အသုံးစရိတ်ကို မမြင်ရသေးဘူး။ နည်းနည်းနေပြီး ပြန်ကြည့်ပါ။"}, { status: 400 });
   }
   const fallback = localCoachMessage(body);
   const key = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
   if (!key) return Response.json({ message: fallback });
   try {
     const message = await askGemini(key, body);
-    return Response.json({ message });
+    return Response.json({ message: message || fallback });
   } catch {
     return Response.json({ message: fallback });
   }

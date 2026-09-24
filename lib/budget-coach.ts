@@ -55,24 +55,32 @@ export function buildCoachSnapshot(expenses: Expense[], budget: number, now = ne
 }
 
 export function localCoachMessage(snapshot: CoachSnapshot): string {
-  const { income, expenses, net, budget, projected, dining, topCategory, topAmount, month } = snapshot;
+  const { income, expenses, net, budget, projected, dining, topAmount } = snapshot;
+  const spent = formatMoney(expenses);
+  const earned = formatMoney(income);
+  const pace = formatMoney(projected);
+  const limit = formatMoney(budget);
+
   if (income === 0 && expenses === 0) {
-    return `Nothing on the books for ${month} yet. Log a salary or the first receipt and I’ll tell you if the pace is chill or chaotic.`;
+    return "ဒီလစာရင်းမရှိသေးဘူးနော်။ လစာထည့်လိုက်၊ ဒါမှမဟုတ် ဘောက်ချာတစ်ရွက်စကန်လုပ်လိုက်။ ပြီးရင် ဖြည်းဖြည်းသုံးနေတာလား၊ မြန်မြန်ကုန်နေတာလား ပြောပေးမယ်။";
   }
-  if (expenses > 0 && dining >= topAmount && dining > 0 && (expenses === 0 || dining / expenses >= 0.35)) {
-    return `Dining is doing the most. ${formatMoney(dining)} has already gone to meals out, the loudest part of ${formatMoney(expenses)}. Next round can be tea at home.`;
+  if (expenses > 0 && dining >= topAmount && dining > 0 && dining / expenses >= 0.35) {
+    return `ထမင်းစားတာ နည်းနည်းများနေပြီ။ ${formatMoney(dining)} ကုန်ပြီး၊ စုစုပေါင်း ${spent} ထဲမှာ အဲဒါက အကျယ်ဆုံးပဲ။ နောက်တစ်ခါ အိမ်မှာ လက်ဖက်ရည်သောက်လိုက်ရင် ရတယ်။`;
   }
   if (income === 0 && expenses > 0) {
-    return `${formatMoney(expenses)} is already out the door and no income is logged. Add Monthly Salary so this number has something to lean on.`;
+    return `${spent} ထွက်သွားပြီ၊ လစာမသွင်းရသေးဘူး။ Monthly Salary နှိပ်ပြီး ဒီလလစာထည့်လိုက်ဦးနော်။`;
   }
   if (budget > 0 && projected > budget) {
-    return `This pace runs hot. Keep it up and ${month} lands near ${formatMoney(projected)}, past the ${formatMoney(budget)} budget. Worth a slower week.`;
+    return `သုံးနေတာ နည်းနည်းမြန်နေတယ်။ ဒီအတိုင်းဆက်ရင် ဒီလကုန် ${pace} လောက်ရောက်မယ်၊ ဘတ်ဂျက် ${limit} ထက် ကျော်သွားမယ်။ နည်းနည်းလေး ဖြေးလိုက်။`;
   }
   if (net < 0) {
-    return `Net is upside down: ${formatMoney(expenses)} out against ${formatMoney(income)} in. Not a lecture, just a nudge before the month gets away.`;
+    return `ဝင်တာ ${earned}၊ ထွက်တာ ${spent}။ ဒီလစာရင်းက နည်းနည်းပြောင်းပြန်ဖြစ်နေတယ်။ မဆူပါဘူး၊ နည်းနည်းပဲ သတိထားလိုက်။`;
   }
-  if (topCategory && topAmount > 0) {
-    return `The vibe is steady. ${formatMoney(income)} in, ${formatMoney(expenses)} out, and ${topCategory} is the main tab at ${formatMoney(topAmount)}. Room to keep it this easy.`;
+  if (budget > 0 && expenses <= budget) {
+    return `တော်တော်ကောင်းတယ်။ ${spent} ပဲ ကုန်သေးတယ်၊ ဘတ်ဂျက် ${limit} ထဲမှာ နေသေးတယ်။ ဒီအတိုင်းပဲ ဆက်သွား။`;
   }
-  return `${formatMoney(income)} in and nothing spent yet. Pocket the win, or go log the first receipt when it shows up.`;
+  if (income > 0 && expenses === 0) {
+    return `လစာ ${earned} ဝင်လာပြီ။ ပိုက်ဆံအိတ်အဆင်ပြေတယ်။ ပထမဆုံး ဘောက်ချာပေါ်လာရင် မှတ်ထားလိုက်ဦး။`;
+  }
+  return `အဆင်ပြေတဲ့ လ။ ဝင်တာ ${earned}၊ ထွက်တာ ${spent}။ ဒီအတိုင်း ဆက်သွားလို့ ရတယ်။`;
 }
