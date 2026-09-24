@@ -82,11 +82,12 @@ function classify(line: string): LineKind {
     return "skip";
   }
   if (/^total\s+before\b/i.test(normalized)) return "skip";
+  if (/^net(?:t)?\s*(?:amount|amt|total)\b/i.test(normalized)) return "skip";
   if (/^(cash\s*tendered|cash\s*received|amount\s*paid|amount\s*tendered|tendered|tender|paid|cash(?!ier))\b/i.test(normalized)) {
     return "paid";
   }
   if (/^grand\s*total\b/i.test(normalized)) return "grand";
-  if (/^(net\s*total|amount\s*due|balance\s*due|total\s*amount|total\s*due|total)\b/i.test(normalized)) {
+  if (/^(amount\s*due|balance\s*due|total\s*amount|total\s*due|total)\b/i.test(normalized)) {
     return "total";
   }
   return "item";
@@ -163,6 +164,7 @@ function itemFromLine(line: string): { description: string; amount: number } | n
   let description = withoutAsides.slice(0, last.index ?? 0).replace(/[\s:.\-|]+$/g, "").trim();
   description = description.replace(/(?:\s+\d{1,3}(?:,\d{3})*)+\s*$/g, "").trim();
   const letters = description.match(/[A-Za-z\u1000-\u109F]/g)?.length ?? 0;
+  if (/^net(?:t)?\s*(?:amount|amt|total)\b/i.test(description)) return null;
   if (letters < 3 || letters / Math.max(description.length, 1) < 0.45) return null;
   if (description.length > 80) description = description.slice(0, 80);
   return { description: description.replace(/\s+/g, " "), amount };

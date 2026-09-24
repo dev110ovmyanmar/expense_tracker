@@ -115,7 +115,7 @@ export function ExpenseFields({
             <FieldError>{errors.amount}</FieldError>
           ) : total !== null ? (
             <p className="text-xs text-muted-foreground">
-              Saves as {formatMoney(total)}. Use the grand total, not cash, change, or tax.
+              Saves as {formatMoney(total)}. On a voucher that is the total or grand total, not the net amount.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
