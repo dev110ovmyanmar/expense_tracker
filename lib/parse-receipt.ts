@@ -65,7 +65,10 @@ function titleCase(value: string): string {
 }
 
 function classify(line: string): LineKind {
-  const normalized = line.replace(/\s+/g, " ").trim();
+  const normalized = line
+    .replace(/^[^A-Za-z\u1000-\u109F]+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!normalized) return "skip";
   if (/^(thank you|thanks|welcome|have a nice day|check|receipt|invoice|bill)\b/i.test(normalized)) return "skip";
   if (
@@ -164,7 +167,14 @@ function itemFromLine(line: string): { description: string; amount: number } | n
   let description = withoutAsides.slice(0, last.index ?? 0).replace(/[\s:.\-|]+$/g, "").trim();
   description = description.replace(/(?:\s+\d{1,3}(?:,\d{3})*)+\s*$/g, "").trim();
   const letters = description.match(/[A-Za-z\u1000-\u109F]/g)?.length ?? 0;
-  if (/^net(?:t)?\s*(?:amount|amt|total)\b/i.test(description)) return null;
+  if (
+    /\b(grand\s*total|total\s*amount|total\s*amt|sub[\s-]*total|net(?:t)?\s*(?:amount|amt|total))\b/i.test(
+      `${description} ${line}`,
+    ) ||
+    /^(grand\s*)?total\b/i.test(description)
+  ) {
+    return null;
+  }
   if (letters < 3 || letters / Math.max(description.length, 1) < 0.45) return null;
   if (description.length > 80) description = description.slice(0, 80);
   return { description: description.replace(/\s+/g, " "), amount };
@@ -248,6 +258,7 @@ export function parseReceiptText(source: string, fileName = ""): ParsedReceipt {
     }
 
     if (foundDate && amountsIn(line).length === 0) continue;
+    if (classify(line) !== "item") continue;
     if (/no\.?\s*\d|road|street|pagoda|tower|yangon|phone|fb\.?\s*com/i.test(line)) continue;
     const item = itemFromLine(line);
     if (item) lineItems.push(item);
