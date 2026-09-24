@@ -52,7 +52,7 @@ function visionProvider(): { name: "openai" | "gemini"; key: string; model: stri
     return {
       name: "gemini",
       key: gemini,
-      model: process.env.GEMINI_VISION_MODEL?.trim() || "gemini-2.5-flash",
+      model: process.env.GEMINI_VISION_MODEL?.trim() || "gemini-3.6-flash",
     };
   }
   return null;
@@ -136,7 +136,9 @@ async function readOpenAI(file: File, key: string, model: string): Promise<unkno
 async function readGemini(file: File, key: string, model: string): Promise<unknown> {
   const bytes = Buffer.from(await file.arrayBuffer());
   const mime = file.type || "image/jpeg";
-  const models = [...new Set([model, "gemini-2.5-flash", "gemini-flash-latest"])];
+  const models = [
+    ...new Set([model, "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"]),
+  ];
   let lastError = "The vision model could not read this image.";
   for (const candidate of models) {
     const response = await fetch(
@@ -150,7 +152,7 @@ async function readGemini(file: File, key: string, model: string): Promise<unkno
             {
               parts: [
                 {
-                  text: "Extract this voucher. grandTotal must be the GRAND TOTAL, not the subtotal or cash tendered. Do not put totals, tax, or service charge in items. Reply with JSON only.",
+                  text: "Extract this voucher as JSON with shopName, date as YYYY-MM-DD, invoiceNo, items[{itemName,quantity,unitPrice,totalPrice}], subtotal, tax, serviceCharge, grandTotal, currency. grandTotal is the Grand Total line, not the subtotal. Do not put totals, tax, or service charge in items. JSON only.",
                 },
                 { inlineData: { mimeType: mime, data: bytes.toString("base64") } },
               ],
@@ -162,15 +164,17 @@ async function readGemini(file: File, key: string, model: string): Promise<unkno
     );
     if (!response.ok) {
       lastError = await providerError(response);
-      if (response.status === 404) continue;
+      const busy = response.status === 404 || response.status === 429 || response.status === 503 || /high demand|unavailable|overloaded|try again/i.test(lastError);
+      if (busy) continue;
       throw new Error(lastError);
     }
     const payload: unknown = await response.json();
-    const text =
+    const parts =
       typeof payload === "object" && payload !== null && "candidates" in payload
         ? (payload as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }).candidates?.[0]
-            ?.content?.parts?.[0]?.text
-        : "";
+            ?.content?.parts
+        : [];
+    const text = (parts ?? []).map((part) => part.text ?? "").filter(Boolean).join("\n");
     if (typeof text !== "string" || !text.trim()) {
       throw new Error("The vision model returned an empty reply.");
     }
