@@ -1,9 +1,9 @@
 -- Aura ledger. Run this in the Supabase SQL editor.
--- Authentication → Providers → enable Anonymous sign-ins so each browser gets a user id.
+-- No sign-in is required. The anon key reads and writes these tables.
 
 create table if not exists public.expenses (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null,
   item_name text not null,
   shop_name text not null,
   amount numeric(14, 2) not null check (amount > 0),
@@ -19,7 +19,7 @@ create table if not exists public.expenses (
 create index if not exists expenses_user_date_idx on public.expenses (user_id, date desc);
 
 create table if not exists public.budgets (
-  user_id uuid primary key references auth.users (id) on delete cascade,
+  user_id uuid primary key,
   amount numeric(14, 2) not null check (amount >= 0),
   updated_at timestamptz not null default now()
 );
@@ -27,18 +27,21 @@ create table if not exists public.budgets (
 alter table public.expenses enable row level security;
 alter table public.budgets enable row level security;
 
-create policy "expenses_select_own" on public.expenses
-  for select to authenticated using (auth.uid() = user_id);
-create policy "expenses_insert_own" on public.expenses
-  for insert to authenticated with check (auth.uid() = user_id);
-create policy "expenses_update_own" on public.expenses
-  for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "expenses_delete_own" on public.expenses
-  for delete to authenticated using (auth.uid() = user_id);
+grant select, insert, update, delete on public.expenses to anon, authenticated;
+grant select, insert, update, delete on public.budgets to anon, authenticated;
 
-create policy "budgets_select_own" on public.budgets
-  for select to authenticated using (auth.uid() = user_id);
-create policy "budgets_insert_own" on public.budgets
-  for insert to authenticated with check (auth.uid() = user_id);
-create policy "budgets_update_own" on public.budgets
-  for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "expenses_public_select" on public.expenses
+  for select to anon, authenticated using (true);
+create policy "expenses_public_insert" on public.expenses
+  for insert to anon, authenticated with check (true);
+create policy "expenses_public_update" on public.expenses
+  for update to anon, authenticated using (true) with check (true);
+create policy "expenses_public_delete" on public.expenses
+  for delete to anon, authenticated using (true);
+
+create policy "budgets_public_select" on public.budgets
+  for select to anon, authenticated using (true);
+create policy "budgets_public_insert" on public.budgets
+  for insert to anon, authenticated with check (true);
+create policy "budgets_public_update" on public.budgets
+  for update to anon, authenticated using (true) with check (true);

@@ -72,11 +72,22 @@ function rowToExpense(row: ExpenseRow): Expense | null {
   };
 }
 
-function expenseToRow(userId: string, expense: Expense) {
+const LEDGER_ID = "00000000-0000-0000-0000-000000000001";
+
+const LOCKED =
+  "Run supabase/migrations/002_public_ledger.sql in the Supabase SQL editor, then reload. Anonymous sign-in is not used.";
+
+function friendlyError(message: string): string {
+  if (/anonymous sign-ins are disabled/i.test(message)) return LOCKED;
+  if (/row-level security|permission denied|violates foreign key/i.test(message)) return LOCKED;
+  return message;
+}
+
+function expenseToRow(expense: Expense) {
   const itemName = expense.lineItems[0]?.description || expense.vendor;
   return {
     id: expense.id,
-    user_id: userId,
+    user_id: LEDGER_ID,
     item_name: itemName,
     shop_name: expense.vendor,
     amount: expense.amount,
@@ -95,30 +106,18 @@ function expenseToRow(userId: string, expense: Expense) {
   };
 }
 
-export async function ensureUserId(): Promise<string> {
-  const supabase = getSupabase();
-  const existing = await supabase.auth.getSession();
-  if (existing.data.session?.user.id) return existing.data.session.user.id;
-  const created = await supabase.auth.signInAnonymously();
-  if (created.error || !created.data.user) {
-    throw new Error(created.error?.message || "Turn on anonymous sign-in in Supabase Authentication.");
-  }
-  return created.data.user.id;
-}
-
-export async function fetchRemoteLedger(userId: string): Promise<RemoteLedger> {
+export async function fetchRemoteLedger(): Promise<RemoteLedger> {
   const supabase = getSupabase();
   const [expensesResult, budgetResult] = await Promise.all([
     supabase
       .from("expenses")
       .select("*")
-      .eq("user_id", userId)
       .order("date", { ascending: false })
       .order("created_at", { ascending: false }),
-    supabase.from("budgets").select("amount").eq("user_id", userId).maybeSingle(),
+    supabase.from("budgets").select("amount").eq("user_id", LEDGER_ID).maybeSingle(),
   ]);
-  if (expensesResult.error) throw new Error(expensesResult.error.message);
-  if (budgetResult.error) throw new Error(budgetResult.error.message);
+  if (expensesResult.error) throw new Error(friendlyError(expensesResult.error.message));
+  if (budgetResult.error) throw new Error(friendlyError(budgetResult.error.message));
   const expenses = ((expensesResult.data ?? []) as ExpenseRow[]).flatMap((row) => {
     const expense = rowToExpense(row);
     return expense ? [expense] : [];
@@ -128,26 +127,26 @@ export async function fetchRemoteLedger(userId: string): Promise<RemoteLedger> {
   return { expenses, budget: Number.isFinite(budget) ? budget : DEFAULT_BUDGET };
 }
 
-export async function upsertExpenses(userId: string, expenses: Expense[]) {
+export async function upsertExpenses(expenses: Expense[]) {
   if (expenses.length === 0) return;
   const supabase = getSupabase();
-  const { error } = await supabase.from("expenses").upsert(expenses.map((expense) => expenseToRow(userId, expense)));
-  if (error) throw new Error(error.message);
+  const { error } = await supabase.from("expenses").upsert(expenses.map((expense) => expenseToRow(expense)));
+  if (error) throw new Error(friendlyError(error.message));
 }
 
 export async function deleteRemoteExpense(id: string) {
   const supabase = getSupabase();
   const { error } = await supabase.from("expenses").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyError(error.message));
 }
 
-export async function saveRemoteBudget(userId: string, amount: number) {
+export async function saveRemoteBudget(amount: number) {
   const supabase = getSupabase();
   const { error } = await supabase.from("budgets").upsert({
-    user_id: userId,
+    user_id: LEDGER_ID,
     amount,
     updated_at: new Date().toISOString(),
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyError(error.message));
 }
 

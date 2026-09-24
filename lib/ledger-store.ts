@@ -1,6 +1,5 @@
 import {
   deleteRemoteExpense,
-  ensureUserId,
   fetchRemoteLedger,
   saveRemoteBudget,
   upsertExpenses,
@@ -32,7 +31,6 @@ const MISSING =
 
 let snapshot: LedgerSnapshot = SERVER_SNAPSHOT;
 let started = false;
-let userId: string | null = null;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -61,8 +59,7 @@ async function load() {
     return;
   }
   try {
-    userId = await ensureUserId();
-    const ledger = await fetchRemoteLedger(userId);
+    const ledger = await fetchRemoteLedger();
     publish({
       expenses: sortExpenses(ledger.expenses),
       budget: ledger.budget,
@@ -82,9 +79,9 @@ function start() {
   void load();
 }
 
-function requireUser(): string {
-  if (!userId) throw new Error(snapshot.storageMessage || MISSING);
-  return userId;
+function requireReady() {
+  if (!isSupabaseConfigured()) throw new Error(MISSING);
+  if (!snapshot.ready) throw new Error(snapshot.storageMessage || "The ledger is still loading.");
 }
 
 export function subscribeLedger(listener: () => void) {
@@ -104,12 +101,12 @@ export function getServerLedgerSnapshot(): LedgerSnapshot {
 }
 
 export async function addExpense(input: ExpenseInput): Promise<Expense> {
-  const owner = requireUser();
+  requireReady();
   const now = new Date().toISOString();
   const expense: Expense = { ...input, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
   publish({ ...snapshot, saving: true });
   try {
-    await upsertExpenses(owner, [expense]);
+    await upsertExpenses([expense]);
     publish({
       ...snapshot,
       expenses: sortExpenses([expense, ...snapshot.expenses]),
@@ -126,13 +123,13 @@ export async function addExpense(input: ExpenseInput): Promise<Expense> {
 }
 
 export async function updateExpense(id: string, input: ExpenseInput) {
-  const owner = requireUser();
+  requireReady();
   const current = snapshot.expenses.find((expense) => expense.id === id);
   if (!current) throw new Error("That expense is no longer in the ledger.");
   const updated: Expense = { ...current, ...input, updatedAt: new Date().toISOString() };
   publish({ ...snapshot, saving: true });
   try {
-    await upsertExpenses(owner, [updated]);
+    await upsertExpenses([updated]);
     publish({
       ...snapshot,
       expenses: sortExpenses(snapshot.expenses.map((expense) => (expense.id === id ? updated : expense))),
@@ -148,7 +145,7 @@ export async function updateExpense(id: string, input: ExpenseInput) {
 }
 
 export async function deleteExpense(id: string) {
-  requireUser();
+  requireReady();
   publish({ ...snapshot, saving: true });
   try {
     await deleteRemoteExpense(id);
@@ -168,11 +165,11 @@ export async function deleteExpense(id: string) {
 
 export async function setBudget(amount: number) {
   if (!Number.isFinite(amount) || amount < 0) return;
-  const owner = requireUser();
+  requireReady();
   const budget = Math.round(amount * 100) / 100;
   publish({ ...snapshot, saving: true });
   try {
-    await saveRemoteBudget(owner, budget);
+    await saveRemoteBudget(budget);
     publish({ ...snapshot, budget, saving: false, storageWarning: false, storageMessage: null });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The budget could not be saved.";
@@ -182,14 +179,14 @@ export async function setBudget(amount: number) {
 }
 
 export async function restoreSampleMonth() {
-  const owner = requireUser();
+  requireReady();
   const expenses = createSeedExpenses().map((expense) => ({ ...expense, id: crypto.randomUUID() }));
   const previous = snapshot.expenses;
   publish({ ...snapshot, saving: true });
   try {
     await Promise.all(previous.map((expense) => deleteRemoteExpense(expense.id)));
-    await upsertExpenses(owner, expenses);
-    await saveRemoteBudget(owner, DEFAULT_BUDGET);
+    await upsertExpenses(expenses);
+    await saveRemoteBudget(DEFAULT_BUDGET);
     publish({
       ...snapshot,
       expenses: sortExpenses(expenses),
