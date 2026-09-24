@@ -1,11 +1,13 @@
 export const THEME_STORAGE_KEY = "aura-theme";
 
+export const DEFAULT_THEME = "emerald" as const;
+
 export const THEMES = [
-  { id: "espresso", name: "Warm Espresso", swatch: "#c4a574" },
+  { id: "cobalt", name: "Cobalt Night", swatch: "#6d8cff" },
   { id: "emerald", name: "Midnight Emerald", swatch: "#3dbe8b" },
   { id: "slate", name: "Charcoal & Slate Blue", swatch: "#8aa0c8" },
   { id: "rose", name: "Obsidian & Rose Gold", swatch: "#e0b08a" },
-  { id: "forest", name: "Deep Forest & Sage", swatch: "#9cbf9a" },
+  { id: "plum", name: "Dusk Plum", swatch: "#c4a4d4" },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];

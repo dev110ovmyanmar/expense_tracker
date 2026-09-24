@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { THEME_STORAGE_KEY, THEMES, applyTheme, isThemeId, type ThemeId } from "@/lib/themes";
+import { DEFAULT_THEME, THEME_STORAGE_KEY, THEMES, applyTheme, isThemeId, type ThemeId } from "@/lib/themes";
 
 function subscribe(listener: () => void) {
   window.addEventListener("aura-theme", listener);
@@ -21,11 +21,11 @@ function subscribe(listener: () => void) {
 
 function currentTheme(): ThemeId {
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
-  return isThemeId(stored) ? stored : "espresso";
+  return isThemeId(stored) ? stored : DEFAULT_THEME;
 }
 
 function useThemeId(): ThemeId {
-  return useSyncExternalStore(subscribe, currentTheme, () => "espresso");
+  return useSyncExternalStore(subscribe, currentTheme, () => DEFAULT_THEME);
 }
 
 function choose(id: ThemeId) {
