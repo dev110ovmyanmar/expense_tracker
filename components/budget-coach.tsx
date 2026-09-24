@@ -24,12 +24,12 @@ export function BudgetCoach({ expenses, budget }: { expenses: Expense[]; budget:
             : "";
         setReply({
           key: refreshKey,
-          message: next || "Gemini က အခု ခဏမအားသေးဘူး။ နည်းနည်းနေပြီး ပြန်ကြည့်ပါ။",
+          message: next || "အခု ခဏအကြံမပေးနိုင်သေးပါ။ ခဏနေပြီး ပြန်ကြည့်ပေးပါ။",
         });
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setReply({ key: refreshKey, message: "Gemini က အခု ခဏမအားသေးဘူး။ နည်းနည်းနေပြီး ပြန်ကြည့်ပါ။" });
+        setReply({ key: refreshKey, message: "အခု ခဏအကြံမပေးနိုင်သေးပါ။ ခဏနေပြီး ပြန်ကြည့်ပေးပါ။" });
       });
     return () => controller.abort();
   }, [refreshKey]);
@@ -53,9 +53,6 @@ export function BudgetCoach({ expenses, budget }: { expenses: Expense[]; budget:
         ) : (
           <p className="mt-1 text-sm leading-7">{message}</p>
         )}
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {loading ? "Gemini က စဉ်းစားနေတယ်" : "Gemini က ဒီလကို ကြည့်ပြီး ပြောတယ်"}
-        </p>
       </div>
     </section>
   );

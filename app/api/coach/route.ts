@@ -44,12 +44,12 @@ async function askGemini(key: string, snapshot: CoachSnapshot): Promise<string> 
         systemInstruction: {
           parts: [
             {
-              text: "You are Aura, a witty Yangon friend coaching someone's monthly money. Write only in casual spoken Burmese, Myanmar script, the way friends talk, with a little slang. One or two short sentences. Do not use English words at all. The only non-Burmese text allowed is a number plus Ks, copied exactly from the summary. If they are spending faster than the budget, tease them. If they are under budget, praise them. If income arrived and spending is still light, welcome the fresh salary. If the month is empty, invite them to log a salary or a receipt. Do not invent shops, items, or numbers.",
+              text: "You are Aura, a polite financial coach. Speak like a supportive friend and a calm professional advisor. Write only in respectful, natural Burmese, Myanmar script. Use complete grammatical sentences. Keep polite particles correct and separate. One or two short sentences, and nothing else. Be warm, encouraging, and practical. Never be bossy, sarcastic, teasing, rude, slangy, or playful at their expense. Do not scold, joke, or give orders. If spending is ahead of the budget, gently suggest one calm way to ease the pace. If they are within budget, thank them and encourage them to continue. If income arrived, welcome it kindly. If the month is empty, invite them warmly to add a salary or a receipt. Focus only on helpful financial encouragement. Do not invent shops, items, or numbers. Do not use English words. The only non-Burmese text allowed is a number plus Ks, copied exactly from the summary.",
             },
           ],
         },
         contents: [{ parts: [{ text: brief(snapshot) }] }],
-        generationConfig: { temperature: 0.85, maxOutputTokens: 160 },
+        generationConfig: { temperature: 0.4, maxOutputTokens: 160 },
       }),
     },
   );
@@ -81,7 +81,7 @@ async function monthSnapshot(): Promise<CoachSnapshot> {
 export async function GET() {
   const key = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
   if (!key) {
-    return Response.json({ message: "Gemini key မရှိသေးလို့ အကြံမပေးနိုင်သေးဘူး။" }, { status: 503 });
+    return Response.json({ message: "အကြံပေးရန် ချိတ်ဆက်မှု မပြည့်စုံသေးပါ။" }, { status: 503 });
   }
   try {
     const snapshot = isSupabaseConfigured() ? await monthSnapshot() : buildCoachSnapshot([], 0);
@@ -95,14 +95,14 @@ export async function GET() {
     }
     if (!message) {
       return Response.json(
-        { message: "Gemini က အခု ခဏမအားသေးဘူး။ နည်းနည်းနေပြီး ပြန်ကြည့်ပါ။" },
+        { message: "အခု ခဏအကြံမပေးနိုင်သေးပါ။ ခဏနေပြီး ပြန်ကြည့်ပေးပါ။" },
         { status: 502 },
       );
     }
     return Response.json({ message });
   } catch {
     return Response.json(
-      { message: "Gemini က အခု ခဏမအားသေးဘူး။ နည်းနည်းနေပြီး ပြန်ကြည့်ပါ။" },
+      { message: "အခု ခဏအကြံမပေးနိုင်သေးပါ။ ခဏနေပြီး ပြန်ကြည့်ပေးပါ။" },
       { status: 502 },
     );
   }
