@@ -2,6 +2,7 @@
 
 import { ArrowDownLeft, ArrowUpRight, PiggyBank, Scale, ScanLine } from "lucide-react";
 import Link from "next/link";
+import { BudgetCoach } from "@/components/budget-coach";
 import { AddExpenseButton } from "@/components/ExpenseForm";
 import { PageHeader } from "@/components/page-header";
 import { useExpenses } from "@/components/expense-provider";
@@ -62,6 +63,8 @@ export function Dashboard() {
           </>
         }
       />
+
+      <BudgetCoach expenses={monthRows} budget={budget} />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

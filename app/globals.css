@@ -154,3 +154,17 @@
 .aura-scanline {
   animation: aura-scan 1.7s ease-in-out infinite;
 }
+
+@keyframes aura-coach-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 16px 2px color-mix(in oklch, var(--primary) 45%, transparent);
+  }
+}
+
+.aura-coach-glow {
+  animation: aura-coach-glow 2.8s ease-in-out infinite;
+}
