@@ -68,6 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/85 px-4 py-3 backdrop-blur md:hidden">
           <Brand />
           <div className="flex items-center gap-3">
+            {userName ? <p className="max-w-28 truncate text-sm font-medium">{userName}</p> : null}
             {userEmail ? (
               <button type="button" className="text-xs text-muted-foreground" onClick={() => void signOut()}>Log out</button>
             ) : null}

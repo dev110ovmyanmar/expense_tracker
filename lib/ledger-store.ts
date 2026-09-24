@@ -71,7 +71,7 @@ function sortExpenses(expenses: Expense[]): Expense[] {
 function accountName(user: { email?: string | null; user_metadata?: Record<string, unknown> } | null): string | null {
   if (!user) return null;
   const meta = user.user_metadata ?? {};
-  for (const key of ["display_name", "full_name", "name"]) {
+  for (const key of ["full_name", "user_name", "display_name", "name"]) {
     const value = meta[key];
     if (typeof value === "string" && value.trim()) return value.trim();
   }
