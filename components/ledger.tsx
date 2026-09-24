@@ -133,7 +133,7 @@ export function Ledger() {
         </Button>
       </div>
 
-      <div className="rounded-xl bg-card px-4 py-4 ring-1 ring-foreground/10 sm:px-5">
+      <div className="rounded-xl bg-card px-3 py-2 ring-1 ring-foreground/10 sm:px-5 sm:py-4">
         <TransactionList
           expenses={filtered}
           emptyTitle={expenses.length === 0 ? "The ledger is empty" : "Nothing matches"}

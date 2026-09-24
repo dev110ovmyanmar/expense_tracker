@@ -1,12 +1,18 @@
 "use client";
 
-import { ChevronDown, Pencil, ScanLine, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, ScanLine, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CategoryDot, CategoryIcon } from "@/components/category-icon";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { useExpenses } from "@/components/expense-provider";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -61,32 +67,16 @@ export function TransactionList({
           const open = expanded.has(expense.id);
           const hasDetails = Boolean(expense.notes) || expense.lineItems.length > 0;
           return (
-            <li key={expense.id} className="py-3 first:pt-0 last:pb-0">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-muted">
-                  <CategoryIcon category={expense.category} className="size-4" />
+            <li key={expense.id} className="py-1.5 first:pt-0 last:pb-0">
+              <div className="flex items-center gap-2">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted">
+                  <CategoryIcon category={expense.category} className="size-3.5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{expense.vendor}</p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                        <span>{formatDate(expense.date)}</span>
-                        <span aria-hidden>·</span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <CategoryDot category={expense.category} className="size-1.5 rounded-full" />
-                          {expense.category}
-                        </span>
-                        {expense.source === "ocr" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-foreground">
-                            <ScanLine className="size-3" />
-                            Scanned
-                          </span>
-                        ) : null}
-                      </p>
-                    </div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-sm font-medium">{expense.vendor}</p>
                     <p
-                      className={`font-mono text-sm tabular-nums ${
+                      className={`shrink-0 font-mono text-sm whitespace-nowrap tabular-nums ${
                         expense.type === "income"
                           ? "text-emerald-600 dark:text-emerald-400"
                           : "text-rose-700 dark:text-rose-400"
@@ -96,24 +86,38 @@ export function TransactionList({
                       {formatMoney(expense.amount)}
                     </p>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1">
-                    {hasDetails ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        aria-expanded={open}
-                        onClick={() => toggle(expense.id)}
-                      >
-                        <ChevronDown className={open ? "rotate-180" : undefined} />
-                        {open ? "Hide details" : "Details"}
-                      </Button>
+                  <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                    <span className="shrink-0">{formatDate(expense.date)}</span>
+                    <span aria-hidden>·</span>
+                    <span className="inline-flex min-w-0 items-center gap-1">
+                      <CategoryDot category={expense.category} className="size-1.5 shrink-0 rounded-full" />
+                      <span className="truncate">{expense.category}</span>
+                    </span>
+                    {expense.source === "ocr" ? (
+                      <ScanLine className="size-3 shrink-0" aria-label="Scanned" />
                     ) : null}
+                  </p>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
                       variant="ghost"
-                      size="sm"
-                      onClick={() => {
+                      size="icon-lg"
+                      className="shrink-0"
+                      aria-label={`Actions for ${expense.vendor}`}
+                    >
+                      <MoreHorizontal />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {hasDetails ? (
+                      <DropdownMenuItem onSelect={() => toggle(expense.id)}>
+                        {open ? "Hide details" : "Details"}
+                      </DropdownMenuItem>
+                    ) : null}
+                    <DropdownMenuItem
+                      onSelect={() => {
                         setEditing(expense);
                         setFormSession((current) => current + 1);
                         setFormOpen(true);
@@ -121,40 +125,37 @@ export function TransactionList({
                     >
                       <Pencil />
                       Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setPendingDelete(expense)}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => setPendingDelete(expense)}
                     >
                       <Trash2 />
                       Delete
-                    </Button>
-                  </div>
-                  {open && hasDetails ? (
-                    <div className="mt-2 grid gap-2 rounded-lg bg-muted/70 px-3 py-3 text-sm">
-                      {expense.notes ? <p>{expense.notes}</p> : null}
-                      {expense.lineItems.length > 0 ? (
-                        <ul className="grid gap-1">
-                          {expense.lineItems.map((item) => (
-                            <li key={item.id} className="flex justify-between gap-3 font-mono text-xs">
-                              <span className="font-sans">
-                                {item.description}
-                                {item.quantity && item.unitPrice
-                                  ? ` · ${item.quantity} × ${formatMoney(item.unitPrice)}`
-                                  : ""}
-                              </span>
-                              <span>{formatMoney(item.amount)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </div>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {open && hasDetails ? (
+                <div className="mt-1.5 ml-10 grid gap-1 rounded-lg bg-muted/70 px-3 py-2 text-sm">
+                  {expense.notes ? <p>{expense.notes}</p> : null}
+                  {expense.lineItems.length > 0 ? (
+                    <ul className="grid gap-1">
+                      {expense.lineItems.map((item) => (
+                        <li key={item.id} className="flex justify-between gap-3 font-mono text-xs">
+                          <span className="min-w-0 truncate font-sans">
+                            {item.description}
+                            {item.quantity && item.unitPrice
+                              ? ` · ${item.quantity} × ${formatMoney(item.unitPrice)}`
+                              : ""}
+                          </span>
+                          <span className="shrink-0">{formatMoney(item.amount)}</span>
+                        </li>
+                      ))}
+                    </ul>
                   ) : null}
                 </div>
-              </div>
+              ) : null}
             </li>
           );
         })}
