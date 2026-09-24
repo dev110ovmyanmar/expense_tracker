@@ -31,8 +31,8 @@ export function SpendingChart({ expenses }: { expenses: Expense[] }) {
   }));
 
   return (
-    <div className="grid items-center gap-4 md:grid-cols-[220px_1fr]">
-      <div className="relative h-52">
+    <div className="grid min-w-0 items-center gap-4 md:grid-cols-[220px_1fr]">
+      <div className="relative mx-auto h-52 w-full max-w-xs">
         <div aria-hidden className="h-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>

@@ -66,7 +66,7 @@ export function Dashboard() {
         }
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         <StatCard
           label="Total income"
           value={`+${formatMoney(earned)}`}
@@ -93,7 +93,7 @@ export function Dashboard() {
           value={budget <= 0 ? "—" : formatMoney(Math.abs(remaining))}
           hint={
             budget <= 0
-              ? "Add a monthly limit in the sidebar"
+              ? "Add a monthly limit under Budget"
               : `${formatMoney(spent)} of ${formatMoney(budget)}`
           }
           icon={PiggyBank}
@@ -104,8 +104,8 @@ export function Dashboard() {
 
       <RunwayChart expenses={expenses} />
 
-      <section className="grid gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
+      <section className="grid min-w-0 gap-4 lg:grid-cols-5">
+        <Card className="min-w-0 lg:col-span-3">
           <CardHeader>
             <CardTitle>Where it went</CardTitle>
             <CardDescription>{month} by category</CardDescription>
@@ -114,7 +114,7 @@ export function Dashboard() {
             <SpendingChart expenses={monthExpenses} />
           </CardContent>
         </Card>
-        <Card className="lg:col-span-2">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader>
             <CardTitle>Latest</CardTitle>
             <CardDescription>The newest income and expenses this month</CardDescription>
@@ -176,7 +176,7 @@ function StatCard({
           </span>
         </div>
         <p
-          className={`font-mono text-2xl tracking-tight tabular-nums ${
+          className={`font-mono text-lg leading-tight tracking-tight break-words tabular-nums sm:text-2xl ${
             tone === "warning" ? "text-destructive" : tone === "positive" ? "text-emerald-600 dark:text-emerald-400" : ""
           }`}
         >

@@ -48,7 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Brand />
           <ThemeToggle />
         </header>
-        <main className="px-4 pt-5 pb-24 md:px-8 md:pt-8 md:pb-10">
+        <main className="overflow-x-hidden px-4 pt-4 pb-28 md:px-8 md:pt-8 md:pb-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
             {storageWarning ? (
               <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -61,8 +61,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             {children}
           </div>
         </main>
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur md:hidden">
-          <ul className="grid grid-cols-3">
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+          <ul className="grid grid-cols-3 px-2">
             {NAV.map((item) => {
               const active = pathname === item.href;
               const Icon = item.icon;
@@ -70,12 +70,20 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex flex-col items-center gap-1 py-2.5 text-[11px]",
+                      "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium",
                       active ? "text-primary" : "text-muted-foreground",
                     )}
                   >
-                    <Icon className="size-5" />
+                    <span
+                      className={cn(
+                        "grid size-8 place-items-center rounded-full",
+                        active ? "bg-primary/10 text-primary" : "",
+                      )}
+                    >
+                      <Icon className="size-5" />
+                    </span>
                     {item.label}
                   </Link>
                 </li>

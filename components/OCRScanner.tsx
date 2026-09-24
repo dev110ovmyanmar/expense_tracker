@@ -365,7 +365,7 @@ export function OCRScanner() {
             PNG or JPG vouchers are sent to a vision model, which returns the shop, items, and grand total.
             Check the form before it joins the ledger.
           </p>
-          <Button asChild className="mt-5 h-10">
+          <Button asChild className="mt-5 h-11 w-full sm:w-auto">
             <label htmlFor="receipt-upload">
               <Upload />
               Browse files

@@ -53,7 +53,7 @@ export function Ledger() {
         actions={<AddExpenseButton className="h-10" />}
       />
 
-      <div className="grid gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 lg:grid-cols-[1fr_180px_160px_160px]">
+      <div className="grid gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:p-4 lg:grid-cols-[1fr_180px_160px_160px]">
         <div className="grid gap-2">
           <Label htmlFor="ledger-search">Search</Label>
           <div className="relative">
@@ -63,7 +63,7 @@ export function Ledger() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Vendor, note, or item"
-              className="h-10 pl-8"
+              className="h-11 pl-8"
             />
           </div>
         </div>
@@ -73,7 +73,7 @@ export function Ledger() {
             value={category}
             onValueChange={(value) => setCategory(value === "all" ? "all" : (value as Category))}
           >
-            <SelectTrigger id="ledger-category" className="h-10 w-full">
+            <SelectTrigger id="ledger-category" className="h-11 w-full">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
@@ -96,7 +96,7 @@ export function Ledger() {
             type="date"
             value={from}
             onChange={(event) => setFrom(event.target.value)}
-            className="h-10"
+            className="h-11"
           />
         </div>
         <div className="grid gap-2">
@@ -106,7 +106,7 @@ export function Ledger() {
             type="date"
             value={to}
             onChange={(event) => setTo(event.target.value)}
-            className="h-10"
+            className="h-11"
           />
         </div>
       </div>

@@ -21,7 +21,7 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-3">
           <Figure label="Daily spend" value={formatMoney(forecast.dailyExpense)} />
           <Figure label="Monthly salary" value={formatMoney(forecast.monthlySalary)} />
           <Figure
@@ -32,7 +32,7 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
         </div>
         {forecast.ready ? (
           <>
-            <div className="h-72">
+            <div className="h-64 min-w-0 overflow-hidden sm:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={forecast.points} margin={{ top: 28, right: 20, left: 0, bottom: 0 }}>
                   <defs>
@@ -61,7 +61,7 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
                     tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
                     tickLine={false}
                     axisLine={false}
-                    width={56}
+                    width={44}
                     tickFormatter={(value: number) =>
                       Math.abs(value) >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))
                     }

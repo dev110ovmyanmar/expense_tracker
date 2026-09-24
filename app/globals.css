@@ -136,6 +136,7 @@
   }
   html {
     @apply font-sans;
+    overflow-x: hidden;
   }
   summary::-webkit-details-marker {
     display: none;
