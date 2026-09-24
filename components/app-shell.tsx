@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { AuthScreen } from "@/components/auth-screen";
 import { DailyReminderBanner, ReminderToggle } from "@/components/daily-reminder";
 import { useExpenses } from "@/components/expense-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemePicker } from "@/components/theme-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { expensesInMonth, ofType, sumAmounts } from "@/lib/expenses";
@@ -51,10 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <p className="min-w-0 truncate text-xs text-muted-foreground">{userEmail}</p>
             <button type="button" className="shrink-0 text-xs" onClick={() => void signOut()}>Log out</button>
           </div>
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">Theme</p>
-            <ThemeToggle />
-          </div>
+          <ThemePicker />
         </div>
       </aside>
 
@@ -65,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {userEmail ? (
               <button type="button" className="text-xs text-muted-foreground" onClick={() => void signOut()}>Log out</button>
             ) : null}
-            <ThemeToggle />
+            <ThemePicker compact />
           </div>
         </header>
         <main className="overflow-x-hidden px-4 pt-3 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-10">

@@ -1,12 +1,12 @@
 "use client";
 
-import { ThemeProvider as NextThemesProvider } from "next-themes";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { THEME_STORAGE_KEY, applyTheme, isThemeId } from "@/lib/themes";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  return (
-    <NextThemesProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      {children}
-    </NextThemesProvider>
-  );
+  useEffect(() => {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    applyTheme(isThemeId(stored) ? stored : "espresso");
+  }, []);
+  return children;
 }

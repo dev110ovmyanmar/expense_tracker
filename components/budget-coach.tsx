@@ -46,7 +46,7 @@ export function BudgetCoach({ expenses, budget }: { expenses: Expense[]; budget:
     <section
       aria-live="polite"
       aria-busy={loading}
-      className="flex items-start gap-3 rounded-3xl bg-[oklch(0.95_0.025_78)] px-4 py-4 ring-1 ring-primary/20 dark:bg-[oklch(0.32_0.03_55)]"
+      className="flex items-start gap-3 rounded-3xl bg-primary/10 px-4 py-4 ring-1 ring-primary/20"
     >
       <span className="aura-coach-glow grid size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
         <Sparkles className="size-4" />

@@ -39,6 +39,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("aura-theme")||"espresso";document.documentElement.dataset.theme=t;document.documentElement.classList.add("dark")}catch(e){}`,
+          }}
+        />
         <ThemeProvider>
           <ExpenseProvider>
             <AppShell>{children}</AppShell>
