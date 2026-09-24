@@ -6,6 +6,7 @@ import { BudgetCoach } from "@/components/budget-coach";
 import { AddExpenseButton } from "@/components/ExpenseForm";
 import { PageHeader } from "@/components/page-header";
 import { useExpenses } from "@/components/expense-provider";
+import { RunwayChart } from "@/components/runway-chart";
 import { SpendingChart } from "@/components/SpendingChart";
 import { TransactionList } from "@/components/transaction-list";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,8 @@ export function Dashboard() {
           progress={budget > 0 ? Math.min(100, (spent / budget) * 100) : undefined}
         />
       </section>
+
+      <RunwayChart expenses={expenses} />
 
       <section className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">
