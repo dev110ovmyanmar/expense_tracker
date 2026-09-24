@@ -4,6 +4,7 @@ import { BookOpen, LayoutDashboard, RotateCcw, ScanLine } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import { useExpenses } from "@/components/expense-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -59,8 +60,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="px-4 pt-5 pb-24 md:px-8 md:pt-8 md:pb-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
             {storageWarning ? (
-              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {storageMessage ?? "This browser blocked saving. Changes will disappear after a refresh."}
+              <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {storageMessage ?? "The ledger could not be saved. Try again in a moment."}
               </p>
             ) : null}
             <div className="md:hidden">
@@ -138,7 +139,7 @@ function NavLink({
 }
 
 function BudgetControls({ compact = false }: { compact?: boolean }) {
-  const { budget, expenses, hydrated, setBudget, restoreSampleMonth } = useExpenses();
+  const { budget, expenses, hydrated, saving, setBudget, restoreSampleMonth } = useExpenses();
   const [draft, setDraft] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const spent = sumAmounts(expensesInMonth(expenses));
@@ -147,8 +148,13 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
 
   function commit() {
     const parsed = parseMoney(draft ?? "");
-    if (parsed !== null) setBudget(parsed);
     setDraft(null);
+    if (parsed === null) return;
+    void setBudget(parsed).catch((error: unknown) => {
+      toast.error("Could not save the budget", {
+        description: error instanceof Error ? error.message : "Try again in a moment.",
+      });
+    });
   }
 
   if (!hydrated) {
@@ -211,7 +217,7 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
             <DialogTitle>Restore the sample month?</DialogTitle>
             <DialogDescription>
               This replaces the current ledger and budget with the built-in September-style sample.
-              Expenses you added will be removed from this browser.
+              Expenses you added will be removed from the database.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -220,12 +226,18 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
             </Button>
             <Button
               type="button"
+              disabled={saving}
               onClick={() => {
-                restoreSampleMonth();
-                setConfirmOpen(false);
+                void restoreSampleMonth()
+                  .then(() => setConfirmOpen(false))
+                  .catch((error: unknown) => {
+                    toast.error("Could not restore the sample month", {
+                      description: error instanceof Error ? error.message : "Try again in a moment.",
+                    });
+                  });
               }}
             >
-              Restore sample
+              {saving ? "Restoring…" : "Restore sample"}
             </Button>
           </DialogFooter>
         </DialogContent>

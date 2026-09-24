@@ -29,7 +29,7 @@ const FIELD_ORDER = ["vendor", "date", "amount", "lineItems", "notes"] as const;
 const MAX_BYTES = 10 * 1024 * 1024;
 
 export function OCRScanner() {
-  const { addExpense, hydrated } = useExpenses();
+  const { addExpense, hydrated, saving } = useExpenses();
   const inputRef = useRef<HTMLInputElement>(null);
   const dragDepth = useRef(0);
   const previewRef = useRef<string | null>(null);
@@ -136,7 +136,7 @@ export function OCRScanner() {
     begin(file);
   }
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!draft) return;
     if (!hydrated) {
@@ -150,16 +150,22 @@ export function OCRScanner() {
       if (first) document.getElementById(`ocr-${first}`)?.focus();
       return;
     }
-    const expense = addExpense({
-      ...result.value,
-      source: "ocr",
-      receiptName: fileName,
-    });
-    setSaved(expense);
-    setPhase("saved");
-    toast.success("Added to your ledger", {
-      description: `${expense.vendor} · ${formatMoney(expense.amount)}`,
-    });
+    try {
+      const expense = await addExpense({
+        ...result.value,
+        source: "ocr",
+        receiptName: fileName,
+      });
+      setSaved(expense);
+      setPhase("saved");
+      toast.success("Added to your ledger", {
+        description: `${expense.vendor} · ${formatMoney(expense.amount)}`,
+      });
+    } catch (error) {
+      toast.error("Could not save this receipt", {
+        description: error instanceof Error ? error.message : "Try again in a moment.",
+      });
+    }
   }
 
   if (phase === "saved" && saved) {
@@ -297,9 +303,9 @@ export function OCRScanner() {
                 idPrefix="ocr"
               />
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button type="submit" className="h-11 flex-1 text-base" disabled={!hydrated}>
+                <Button type="submit" className="h-11 flex-1 text-base" disabled={!hydrated || saving}>
                   <Check />
-                  Confirm & Add to Expenses
+                  {saving ? "Saving…" : "Confirm & Add to Expenses"}
                 </Button>
                 <Button type="button" variant="outline" className="h-11" onClick={reset}>
                   Discard

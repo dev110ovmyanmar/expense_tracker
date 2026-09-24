@@ -1,9 +1,6 @@
 import { DEFAULT_BUDGET } from "@/lib/seed";
-import { readLedger } from "@/lib/storage";
 import { getSupabase } from "@/lib/supabase";
 import { CATEGORIES, DEFAULT_CURRENCY, type Category, type Expense, type ExpenseSource, type LineItem } from "@/types/expense";
-
-const MIGRATED_KEY = "aura.ledger.migrated";
 
 export interface RemoteLedger {
   expenses: Expense[];
@@ -112,7 +109,12 @@ export async function ensureUserId(): Promise<string> {
 export async function fetchRemoteLedger(userId: string): Promise<RemoteLedger> {
   const supabase = getSupabase();
   const [expensesResult, budgetResult] = await Promise.all([
-    supabase.from("expenses").select("*").eq("user_id", userId).order("date", { ascending: false }),
+    supabase
+      .from("expenses")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false }),
     supabase.from("budgets").select("amount").eq("user_id", userId).maybeSingle(),
   ]);
   if (expensesResult.error) throw new Error(expensesResult.error.message);
@@ -149,23 +151,3 @@ export async function saveRemoteBudget(userId: string, amount: number) {
   if (error) throw new Error(error.message);
 }
 
-export async function migrateLocalLedger(userId: string, remote: RemoteLedger): Promise<RemoteLedger> {
-  if (typeof window === "undefined" || window.localStorage.getItem(MIGRATED_KEY)) return remote;
-  const local = readLedger();
-  if (!local || (local.expenses.length === 0 && remote.expenses.length > 0)) {
-    window.localStorage.setItem(MIGRATED_KEY, "1");
-    return remote;
-  }
-  if (remote.expenses.length > 0) {
-    window.localStorage.setItem(MIGRATED_KEY, "1");
-    return remote;
-  }
-  const expenses = local.expenses.map((expense) => ({
-    ...expense,
-    id: crypto.randomUUID(),
-  }));
-  await upsertExpenses(userId, expenses);
-  await saveRemoteBudget(userId, local.budget);
-  window.localStorage.setItem(MIGRATED_KEY, "1");
-  return { expenses, budget: local.budget };
-}

@@ -27,7 +27,7 @@ export function TransactionList({
   emptyTitle: string;
   emptyBody: string;
 }) {
-  const { deleteExpense } = useExpenses();
+  const { deleteExpense, saving } = useExpenses();
   const [editing, setEditing] = useState<Expense | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [formSession, setFormSession] = useState(0);
@@ -173,14 +173,23 @@ export function TransactionList({
             <Button
               type="button"
               variant="destructive"
+              disabled={saving}
               onClick={() => {
                 if (!pendingDelete) return;
-                deleteExpense(pendingDelete.id);
-                toast.success("Expense removed", { description: pendingDelete.vendor });
-                setPendingDelete(null);
+                const removing = pendingDelete;
+                void deleteExpense(removing.id)
+                  .then(() => {
+                    toast.success("Expense removed", { description: removing.vendor });
+                    setPendingDelete(null);
+                  })
+                  .catch((error: unknown) => {
+                    toast.error("Could not delete this expense", {
+                      description: error instanceof Error ? error.message : "Try again in a moment.",
+                    });
+                  });
               }}
             >
-              Delete expense
+              {saving ? "Deleting…" : "Delete expense"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -28,14 +28,14 @@ export function ExpenseForm({
   onOpenChange: (open: boolean) => void;
   expense?: Expense | null;
 }) {
-  const { addExpense, updateExpense } = useExpenses();
+  const { addExpense, updateExpense, saving } = useExpenses();
   const [draft, setDraft] = useState<ExpenseDraft>(() =>
     expense ? draftFromExpense(expense) : emptyDraft(),
   );
   const [errors, setErrors] = useState<FieldErrors>({});
   const editing = Boolean(expense);
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const result = validateDraft(draft);
     if (!result.ok) {
@@ -45,18 +45,24 @@ export function ExpenseForm({
       return;
     }
 
-    if (expense) {
-      updateExpense(expense.id, {
-        ...result.value,
-        source: expense.source,
-        receiptName: expense.receiptName,
+    try {
+      if (expense) {
+        await updateExpense(expense.id, {
+          ...result.value,
+          source: expense.source,
+          receiptName: expense.receiptName,
+        });
+        toast.success("Expense updated", { description: result.value.vendor });
+      } else {
+        await addExpense({ ...result.value, source: "manual" });
+        toast.success("Expense added", { description: result.value.vendor });
+      }
+      onOpenChange(false);
+    } catch (error) {
+      toast.error("Could not save this expense", {
+        description: error instanceof Error ? error.message : "Try again in a moment.",
       });
-      toast.success("Expense updated", { description: result.value.vendor });
-    } else {
-      addExpense({ ...result.value, source: "manual" });
-      toast.success("Expense added", { description: result.value.vendor });
     }
-    onOpenChange(false);
   }
 
   return (
@@ -83,8 +89,8 @@ export function ExpenseForm({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="h-10 px-4">
-              {editing ? "Save changes" : "Add expense"}
+            <Button type="submit" className="h-10 px-4" disabled={saving}>
+              {saving ? "Saving…" : editing ? "Save changes" : "Add expense"}
             </Button>
           </DialogFooter>
         </form>

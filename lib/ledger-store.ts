@@ -2,12 +2,10 @@ import {
   deleteRemoteExpense,
   ensureUserId,
   fetchRemoteLedger,
-  migrateLocalLedger,
   saveRemoteBudget,
   upsertExpenses,
 } from "@/lib/ledger-db";
 import { createSeedExpenses, DEFAULT_BUDGET } from "@/lib/seed";
-import { readLedger, writeLedger, type PersistedLedger } from "@/lib/storage";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import type { Expense, ExpenseInput } from "@/types/expense";
 
@@ -15,6 +13,7 @@ export interface LedgerSnapshot {
   expenses: Expense[];
   budget: number;
   ready: boolean;
+  saving: boolean;
   storageWarning: boolean;
   storageMessage: string | null;
 }
@@ -23,17 +22,17 @@ const SERVER_SNAPSHOT: LedgerSnapshot = {
   expenses: [],
   budget: DEFAULT_BUDGET,
   ready: false,
+  saving: false,
   storageWarning: false,
   storageMessage: null,
 };
 
-const LOCAL_ONLY =
-  "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then run supabase/migrations/001_expenses.sql. This browser copy is temporary.";
+const MISSING =
+  "Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then run supabase/migrations/001_expenses.sql.";
 
 let snapshot: LedgerSnapshot = SERVER_SNAPSHOT;
 let started = false;
 let userId: string | null = null;
-let remote = false;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -45,50 +44,35 @@ function publish(next: LedgerSnapshot) {
   notify();
 }
 
-function localLedger(): PersistedLedger {
-  return readLedger() ?? { expenses: createSeedExpenses(), budget: DEFAULT_BUDGET };
+function sortExpenses(expenses: Expense[]): Expense[] {
+  return [...expenses].sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return b.createdAt.localeCompare(a.createdAt);
+  });
 }
 
-function keepLocal(message: string | null) {
-  const stored = localLedger();
-  if (!readLedger()) writeLedger(stored);
-  remote = false;
-  userId = null;
-  publish({
-    expenses: stored.expenses,
-    budget: stored.budget,
-    ready: true,
-    storageWarning: Boolean(message),
-    storageMessage: message,
-  });
+function fail(message: string) {
+  publish({ ...snapshot, ready: true, saving: false, storageWarning: true, storageMessage: message });
 }
 
 async function load() {
   if (!isSupabaseConfigured()) {
-    keepLocal(LOCAL_ONLY);
+    fail(MISSING);
     return;
   }
   try {
     userId = await ensureUserId();
-    remote = true;
-    let ledger = await fetchRemoteLedger(userId);
-    ledger = await migrateLocalLedger(userId, ledger);
-    if (ledger.expenses.length === 0) {
-      const seeded = { expenses: createSeedExpenses().map((expense) => ({ ...expense, id: crypto.randomUUID() })), budget: DEFAULT_BUDGET };
-      await upsertExpenses(userId, seeded.expenses);
-      await saveRemoteBudget(userId, seeded.budget);
-      ledger = seeded;
-    }
+    const ledger = await fetchRemoteLedger(userId);
     publish({
-      expenses: ledger.expenses,
+      expenses: sortExpenses(ledger.expenses),
       budget: ledger.budget,
       ready: true,
+      saving: false,
       storageWarning: false,
       storageMessage: null,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "The ledger could not be loaded.";
-    keepLocal(message);
+    fail(error instanceof Error ? error.message : "The ledger could not be loaded.");
   }
 }
 
@@ -98,25 +82,9 @@ function start() {
   void load();
 }
 
-function rememberLocal() {
-  if (remote) return;
-  writeLedger({ expenses: snapshot.expenses, budget: snapshot.budget });
-}
-
-async function persist(action: () => Promise<void>) {
-  if (!remote || !userId) {
-    rememberLocal();
-    return;
-  }
-  try {
-    await action();
-    if (snapshot.storageWarning) {
-      publish({ ...snapshot, storageWarning: false, storageMessage: null });
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The change could not be saved.";
-    publish({ ...snapshot, storageWarning: true, storageMessage: message });
-  }
+function requireUser(): string {
+  if (!userId) throw new Error(snapshot.storageMessage || MISSING);
+  return userId;
 }
 
 export function subscribeLedger(listener: () => void) {
@@ -135,59 +103,104 @@ export function getServerLedgerSnapshot(): LedgerSnapshot {
   return SERVER_SNAPSHOT;
 }
 
-export function addExpense(input: ExpenseInput): Expense {
+export async function addExpense(input: ExpenseInput): Promise<Expense> {
+  const owner = requireUser();
   const now = new Date().toISOString();
-  const expense: Expense = {
-    ...input,
-    id: crypto.randomUUID(),
-    createdAt: now,
-    updatedAt: now,
-  };
-  publish({ ...snapshot, expenses: [expense, ...snapshot.expenses] });
-  void persist(async () => {
-    if (!userId) return;
-    await upsertExpenses(userId, [expense]);
-  });
-  return expense;
+  const expense: Expense = { ...input, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
+  publish({ ...snapshot, saving: true });
+  try {
+    await upsertExpenses(owner, [expense]);
+    publish({
+      ...snapshot,
+      expenses: sortExpenses([expense, ...snapshot.expenses]),
+      saving: false,
+      storageWarning: false,
+      storageMessage: null,
+    });
+    return expense;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The expense could not be saved.";
+    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
+  }
 }
 
-export function updateExpense(id: string, input: ExpenseInput) {
-  const expenses = snapshot.expenses.map((expense) =>
-    expense.id === id ? { ...expense, ...input, updatedAt: new Date().toISOString() } : expense,
-  );
-  publish({ ...snapshot, expenses });
-  const updated = expenses.find((expense) => expense.id === id);
-  void persist(async () => {
-    if (!userId || !updated) return;
-    await upsertExpenses(userId, [updated]);
-  });
+export async function updateExpense(id: string, input: ExpenseInput) {
+  const owner = requireUser();
+  const current = snapshot.expenses.find((expense) => expense.id === id);
+  if (!current) throw new Error("That expense is no longer in the ledger.");
+  const updated: Expense = { ...current, ...input, updatedAt: new Date().toISOString() };
+  publish({ ...snapshot, saving: true });
+  try {
+    await upsertExpenses(owner, [updated]);
+    publish({
+      ...snapshot,
+      expenses: sortExpenses(snapshot.expenses.map((expense) => (expense.id === id ? updated : expense))),
+      saving: false,
+      storageWarning: false,
+      storageMessage: null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The expense could not be updated.";
+    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
+  }
 }
 
-export function deleteExpense(id: string) {
-  publish({ ...snapshot, expenses: snapshot.expenses.filter((expense) => expense.id !== id) });
-  void persist(async () => {
+export async function deleteExpense(id: string) {
+  requireUser();
+  publish({ ...snapshot, saving: true });
+  try {
     await deleteRemoteExpense(id);
-  });
+    publish({
+      ...snapshot,
+      expenses: snapshot.expenses.filter((expense) => expense.id !== id),
+      saving: false,
+      storageWarning: false,
+      storageMessage: null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The expense could not be deleted.";
+    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
+  }
 }
 
-export function setBudget(amount: number) {
+export async function setBudget(amount: number) {
   if (!Number.isFinite(amount) || amount < 0) return;
+  const owner = requireUser();
   const budget = Math.round(amount * 100) / 100;
-  publish({ ...snapshot, budget });
-  void persist(async () => {
-    if (!userId) return;
-    await saveRemoteBudget(userId, budget);
-  });
+  publish({ ...snapshot, saving: true });
+  try {
+    await saveRemoteBudget(owner, budget);
+    publish({ ...snapshot, budget, saving: false, storageWarning: false, storageMessage: null });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The budget could not be saved.";
+    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
+  }
 }
 
-export function restoreSampleMonth() {
+export async function restoreSampleMonth() {
+  const owner = requireUser();
   const expenses = createSeedExpenses().map((expense) => ({ ...expense, id: crypto.randomUUID() }));
   const previous = snapshot.expenses;
-  publish({ ...snapshot, expenses, budget: DEFAULT_BUDGET });
-  void persist(async () => {
-    if (!userId) return;
+  publish({ ...snapshot, saving: true });
+  try {
     await Promise.all(previous.map((expense) => deleteRemoteExpense(expense.id)));
-    await upsertExpenses(userId, expenses);
-    await saveRemoteBudget(userId, DEFAULT_BUDGET);
-  });
+    await upsertExpenses(owner, expenses);
+    await saveRemoteBudget(owner, DEFAULT_BUDGET);
+    publish({
+      ...snapshot,
+      expenses: sortExpenses(expenses),
+      budget: DEFAULT_BUDGET,
+      saving: false,
+      storageWarning: false,
+      storageMessage: null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The sample month could not be restored.";
+    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
+  }
 }

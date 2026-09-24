@@ -17,13 +17,14 @@ interface ExpenseContextValue {
   expenses: Expense[];
   budget: number;
   hydrated: boolean;
+  saving: boolean;
   storageWarning: boolean;
   storageMessage: string | null;
-  addExpense: (input: ExpenseInput) => Expense;
-  updateExpense: (id: string, input: ExpenseInput) => void;
-  deleteExpense: (id: string) => void;
-  setBudget: (amount: number) => void;
-  restoreSampleMonth: () => void;
+  addExpense: (input: ExpenseInput) => Promise<Expense>;
+  updateExpense: (id: string, input: ExpenseInput) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  setBudget: (amount: number) => Promise<void>;
+  restoreSampleMonth: () => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -40,6 +41,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       expenses: ledger.expenses,
       budget: ledger.budget,
       hydrated: ledger.ready,
+      saving: ledger.saving,
       storageWarning: ledger.storageWarning,
       storageMessage: ledger.storageMessage,
       addExpense,
