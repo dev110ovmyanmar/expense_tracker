@@ -12,7 +12,7 @@ export const CATEGORY_META: Record<
   Groceries: {
     color: "#2f6f4e",
     tint: "#dceade",
-    description: "City Express, markets, and convenience stores",
+    description: "Markets and convenience stores",
   },
   Food: {
     color: "#a65b3a",

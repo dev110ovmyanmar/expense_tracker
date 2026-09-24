@@ -1,21 +1,12 @@
 "use client";
 
-import { BookOpen, LayoutDashboard, RotateCcw, ScanLine } from "lucide-react";
+import { BookOpen, LayoutDashboard, ScanLine } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useExpenses } from "@/components/expense-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { expensesInMonth, sumAmounts } from "@/lib/expenses";
@@ -139,9 +130,8 @@ function NavLink({
 }
 
 function BudgetControls({ compact = false }: { compact?: boolean }) {
-  const { budget, expenses, hydrated, saving, setBudget, restoreSampleMonth } = useExpenses();
+  const { budget, expenses, hydrated, setBudget } = useExpenses();
   const [draft, setDraft] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const spent = sumAmounts(expensesInMonth(expenses));
   const ratio = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
   const remaining = budget - spent;
@@ -201,47 +191,6 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
           aria-label="Monthly budget in kyat"
         />
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="justify-start px-0"
-        onClick={() => setConfirmOpen(true)}
-      >
-        <RotateCcw />
-        Restore sample month
-      </Button>
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Restore the sample month?</DialogTitle>
-            <DialogDescription>
-              This replaces the current ledger and budget with the built-in September-style sample.
-              Expenses you added will be removed from the database.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              disabled={saving}
-              onClick={() => {
-                void restoreSampleMonth()
-                  .then(() => setConfirmOpen(false))
-                  .catch((error: unknown) => {
-                    toast.error("Could not restore the sample month", {
-                      description: error instanceof Error ? error.message : "Try again in a moment.",
-                    });
-                  });
-              }}
-            >
-              {saving ? "Restoring…" : "Restore sample"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 

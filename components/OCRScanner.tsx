@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Check,
-  FileImage,
-  FileText,
-  Loader2,
-  ScanLine,
-  Upload,
-} from "lucide-react";
+import { Check, Loader2, ScanLine, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -18,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatMoney } from "@/lib/format";
 import { extractReceipt, fileKind, OCR_STEPS } from "@/lib/ocr";
-import { getSampleReceipts } from "@/lib/sample-receipts";
 import { draftFromOCR, validateDraft, type FieldErrors } from "@/lib/validate";
 import type { Expense, ExpenseDraft, OCRData } from "@/types/expense";
 
@@ -55,8 +47,8 @@ export function OCRScanner() {
   useEffect(() => {
     if (phase !== "processing") return;
     const timers = [
-      window.setTimeout(() => setStep(1), 700),
-      window.setTimeout(() => setStep(2), 1500),
+      window.setTimeout(() => setStep(1), 180),
+      window.setTimeout(() => setStep(2), 360),
     ];
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [phase, run]);
@@ -98,7 +90,6 @@ export function OCRScanner() {
     }
     const token = generation.current + 1;
     generation.current = token;
-    const started = Date.now();
     replacePreview(URL.createObjectURL(file));
     setPreviewKind(kind);
     setFileName(file.name);
@@ -111,16 +102,13 @@ export function OCRScanner() {
     setPhase("processing");
 
     void extractReceipt(file).then((data) => {
-      const wait = Math.max(0, 2400 - (Date.now() - started));
-      window.setTimeout(() => {
-        if (generation.current !== token) return;
-        setOcr(data);
-        setDraft(draftFromOCR(data));
-        setPhase("review");
-        if (data.warning) {
-          toast.error("Vision read needs attention", { description: data.warning });
-        }
-      }, wait);
+      if (generation.current !== token) return;
+      setOcr(data);
+      setDraft(draftFromOCR(data));
+      setPhase("review");
+      if (data.warning) {
+        toast.error("Vision read needs attention", { description: data.warning });
+      }
     });
   }
 
@@ -318,8 +306,6 @@ export function OCRScanner() {
     );
   }
 
-  const samples = getSampleReceipts();
-
   return (
     <Card>
       <CardContent className="grid gap-6">
@@ -368,24 +354,6 @@ export function OCRScanner() {
               Browse files
             </label>
           </Button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {samples.map((sample) => (
-            <button
-              key={sample.id}
-              type="button"
-              onClick={() => begin(sample.file)}
-              className="flex items-center gap-3 rounded-xl bg-card px-4 py-3 text-left ring-1 ring-foreground/10 transition-colors hover:bg-muted"
-            >
-              <span className="grid size-10 place-items-center rounded-lg bg-muted">
-                {sample.id === "tea-shop" ? <FileText className="size-4" /> : <FileImage className="size-4" />}
-              </span>
-              <span>
-                <span className="block text-sm font-medium">{sample.label}</span>
-                <span className="block text-xs text-muted-foreground">{sample.description}</span>
-              </span>
-            </button>
-          ))}
         </div>
       </CardContent>
     </Card>

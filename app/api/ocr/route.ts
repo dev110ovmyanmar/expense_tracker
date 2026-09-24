@@ -52,7 +52,7 @@ function visionProvider(): { name: "openai" | "gemini"; key: string; model: stri
     return {
       name: "gemini",
       key: gemini,
-      model: process.env.GEMINI_VISION_MODEL?.trim() || "gemini-3.6-flash",
+      model: process.env.GEMINI_VISION_MODEL?.trim() || "gemini-3.5-flash-lite",
     };
   }
   return null;
@@ -136,9 +136,7 @@ async function readOpenAI(file: File, key: string, model: string): Promise<unkno
 async function readGemini(file: File, key: string, model: string): Promise<unknown> {
   const bytes = Buffer.from(await file.arrayBuffer());
   const mime = file.type || "image/jpeg";
-  const models = [
-    ...new Set([model, "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"]),
-  ];
+  const models = [...new Set([model, "gemini-3.5-flash-lite"])];
   let lastError = "The vision model could not read this image.";
   for (const candidate of models) {
     const response = await fetch(

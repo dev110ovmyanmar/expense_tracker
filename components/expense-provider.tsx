@@ -6,7 +6,6 @@ import {
   deleteExpense,
   getLedgerSnapshot,
   getServerLedgerSnapshot,
-  restoreSampleMonth,
   setBudget,
   subscribeLedger,
   updateExpense,
@@ -24,7 +23,6 @@ interface ExpenseContextValue {
   updateExpense: (id: string, input: ExpenseInput) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setBudget: (amount: number) => Promise<void>;
-  restoreSampleMonth: () => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -48,7 +46,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       updateExpense,
       deleteExpense,
       setBudget,
-      restoreSampleMonth,
     }),
     [ledger],
   );

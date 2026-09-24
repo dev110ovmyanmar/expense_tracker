@@ -108,9 +108,34 @@ function isRaster(file: File): boolean {
   );
 }
 
+async function shrinkForVision(file: File): Promise<File> {
+  if (typeof createImageBitmap !== "function") return file;
+  const bitmap = await createImageBitmap(file);
+  const maxEdge = 1280;
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  if (scale === 1 && file.size < 350_000) {
+    bitmap.close();
+    return file;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext("2d");
+  if (!context) {
+    bitmap.close();
+    return file;
+  }
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.7));
+  if (!blob) return file;
+  const name = file.name.replace(/\.[^.]+$/, "") || "receipt";
+  return new File([blob], `${name}.jpg`, { type: "image/jpeg" });
+}
+
 export async function extractReceipt(file: File): Promise<OCRData> {
   try {
-    if (isRaster(file)) return await readVision(file);
+    if (isRaster(file)) return await readVision(await shrinkForVision(file));
     const source = await readReceiptSource(file);
     return toOCRData(file.name, source);
   } catch {

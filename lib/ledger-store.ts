@@ -4,7 +4,7 @@ import {
   saveRemoteBudget,
   upsertExpenses,
 } from "@/lib/ledger-db";
-import { createSeedExpenses, DEFAULT_BUDGET } from "@/lib/seed";
+import { DEFAULT_BUDGET } from "@/lib/seed";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import type { Expense, ExpenseInput } from "@/types/expense";
 
@@ -178,26 +178,3 @@ export async function setBudget(amount: number) {
   }
 }
 
-export async function restoreSampleMonth() {
-  requireReady();
-  const expenses = createSeedExpenses().map((expense) => ({ ...expense, id: crypto.randomUUID() }));
-  const previous = snapshot.expenses;
-  publish({ ...snapshot, saving: true });
-  try {
-    await Promise.all(previous.map((expense) => deleteRemoteExpense(expense.id)));
-    await upsertExpenses(expenses);
-    await saveRemoteBudget(DEFAULT_BUDGET);
-    publish({
-      ...snapshot,
-      expenses: sortExpenses(expenses),
-      budget: DEFAULT_BUDGET,
-      saving: false,
-      storageWarning: false,
-      storageMessage: null,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The sample month could not be restored.";
-    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
-    throw new Error(message);
-  }
-}
