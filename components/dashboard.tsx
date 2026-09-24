@@ -40,7 +40,7 @@ export function Dashboard() {
   const description = monthBudgetLine(month, monthRows.length, spent, budget);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4 sm:gap-8">
       <BudgetCoach expenses={monthRows} budget={budget} />
       <PageHeader
         eyebrow={formatLongDate()}

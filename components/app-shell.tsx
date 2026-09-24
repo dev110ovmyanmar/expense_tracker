@@ -48,8 +48,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Brand />
           <ThemeToggle />
         </header>
-        <main className="overflow-x-hidden px-4 pt-4 pb-28 md:px-8 md:pt-8 md:pb-10">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+        <main className="overflow-x-hidden px-4 pt-3 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-10">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 md:gap-5">
             {storageWarning ? (
               <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {storageMessage ?? "The ledger could not be saved. Try again in a moment."}
@@ -205,7 +205,7 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
   if (!compact) return body;
 
   return (
-    <details className="rounded-xl bg-card px-4 py-3 ring-1 ring-foreground/10">
+    <details className="rounded-xl bg-card px-3 py-2 ring-1 ring-foreground/10">
       <summary className="cursor-pointer list-none text-sm font-medium">
         Budget · {budget > 0 && remaining < 0 ? `${formatMoney(Math.abs(remaining))} over` : `${formatMoney(Math.max(remaining, 0))} left`}
       </summary>
