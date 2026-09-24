@@ -2,49 +2,60 @@
 
 import { Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { buildCoachSnapshot, localCoachMessage } from "@/lib/budget-coach";
 import type { Expense } from "@/types/expense";
 
 export function BudgetCoach({ expenses, budget }: { expenses: Expense[]; budget: number }) {
-  const snapshot = useMemo(() => buildCoachSnapshot(expenses, budget), [expenses, budget]);
-  const fallback = useMemo(() => localCoachMessage(snapshot), [snapshot]);
-  const requestKey = useMemo(() => JSON.stringify(snapshot), [snapshot]);
+  const refreshKey = useMemo(
+    () => `${budget}:${expenses.map((expense) => `${expense.id}:${expense.amount}:${expense.date}`).join(",")}`,
+    [expenses, budget],
+  );
   const [reply, setReply] = useState<{ key: string; message: string } | null>(null);
-  const live = reply?.key === requestKey;
-  const message = live && reply ? reply.message : fallback;
+  const loading = reply?.key !== refreshKey;
+  const message = loading ? "" : (reply?.message ?? "");
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/coach", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(snapshot),
-      signal: controller.signal,
-    })
-      .then((response) => (response.ok ? response.json() : null))
+    void fetch("/api/coach", { signal: controller.signal })
+      .then((response) => response.json().catch(() => null))
       .then((payload: unknown) => {
         const next =
           typeof payload === "object" && payload !== null && "message" in payload && typeof payload.message === "string"
             ? payload.message.trim()
             : "";
-        if (next) setReply({ key: requestKey, message: next });
+        setReply({
+          key: refreshKey,
+          message: next || "Gemini က အခု ခဏမအားသေးဘူး။ နည်းနည်းနေပြီး ပြန်ကြည့်ပါ။",
+        });
       })
-      .catch(() => undefined);
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setReply({ key: refreshKey, message: "Gemini က အခု ခဏမအားသေးဘူး။ နည်းနည်းနေပြီး ပြန်ကြည့်ပါ။" });
+      });
     return () => controller.abort();
-  }, [requestKey, snapshot]);
+  }, [refreshKey]);
 
   return (
     <section
       aria-live="polite"
+      aria-busy={loading}
       className="flex items-start gap-3 rounded-3xl bg-[oklch(0.95_0.025_78)] px-4 py-4 ring-1 ring-primary/20 dark:bg-[oklch(0.32_0.03_55)]"
     >
       <span className="aura-coach-glow grid size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
         <Sparkles className="size-4" />
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Vibe coach</p>
-        <p className="mt-1 text-sm leading-7">{message}</p>
-        <p className="mt-1 text-[11px] text-muted-foreground">{live ? "ဒီလအတိုင်း ပြောထားတယ်" : "ဒီလကို ကြည့်နေတယ်"}</p>
+        {loading ? (
+          <div className="mt-2 grid gap-2" aria-hidden>
+            <span className="h-3 w-11/12 animate-pulse rounded-full bg-primary/15" />
+            <span className="h-3 w-2/3 animate-pulse rounded-full bg-primary/10" />
+          </div>
+        ) : (
+          <p className="mt-1 text-sm leading-7">{message}</p>
+        )}
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {loading ? "Gemini က စဉ်းစားနေတယ်" : "Gemini က ဒီလကို ကြည့်ပြီး ပြောတယ်"}
+        </p>
       </div>
     </section>
   );

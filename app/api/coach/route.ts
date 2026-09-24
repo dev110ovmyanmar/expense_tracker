@@ -1,58 +1,55 @@
-import { localCoachMessage, type CoachSnapshot } from "@/lib/budget-coach";
+import { buildCoachSnapshot, type CoachSnapshot } from "@/lib/budget-coach";
+import { expensesInMonth, ofType, totalsByCategory } from "@/lib/expenses";
 import { formatMoney } from "@/lib/format";
+import { fetchRemoteLedger } from "@/lib/ledger-db";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
-function isSnapshot(value: unknown): value is CoachSnapshot {
-  if (typeof value !== "object" || value === null) return false;
-  const row = value as Record<string, unknown>;
-  return (
-    typeof row.month === "string" &&
-    typeof row.income === "number" &&
-    typeof row.expenses === "number" &&
-    typeof row.dining === "number" &&
-    Array.isArray(row.categories)
-  );
-}
-
 function clip(text: string): string {
-  const clean = text.replace(/\s+/g, " ").replace(/^["']|["']$/g, "").trim();
+  const clean = text
+    .replace(/[A-Za-z]+/g, "")
+    .replace(/[^\u1000-\u109F\uAA60-\uAA7F0-9,.\s။၊!?]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!/[\u1000-\u109F]/.test(clean)) return "";
-  if (clean.length <= 360) return clean;
-  return `${clean.slice(0, 357).trim()}…`;
+  const sentences = clean.split(/(?<=[။!?])/).map((part) => part.trim()).filter(Boolean);
+  const short = (sentences.length > 2 ? sentences.slice(0, 2).join(" ") : clean).trim();
+  if (short.length <= 280) return short;
+  return `${short.slice(0, 277).trim()}…`;
 }
 
 function brief(snapshot: CoachSnapshot): string {
-  const categories = snapshot.categories
-    .map((row) => `${row.name} ${formatMoney(row.amount)}`)
-    .join(", ");
+  const remaining = snapshot.budget - snapshot.expenses;
+  const categories = snapshot.categories.map((row) => `${row.name} ${formatMoney(row.amount)}`).join(", ");
   return [
     `${snapshot.month}, day ${snapshot.day} of ${snapshot.daysInMonth}.`,
-    `Income ${formatMoney(snapshot.income)}. Expenses ${formatMoney(snapshot.expenses)}. Net ${formatMoney(snapshot.net)}.`,
-    `Budget ${formatMoney(snapshot.budget)}. Projected spending ${formatMoney(snapshot.projected)}.`,
-    `Dining ${formatMoney(snapshot.dining)}. Top category ${snapshot.topCategory ?? "none"} at ${formatMoney(snapshot.topAmount)}.`,
-    categories ? `Categories: ${categories}.` : "No categories yet.",
+    `Total income ${formatMoney(snapshot.income)}.`,
+    `Total expenses ${formatMoney(snapshot.expenses)}.`,
+    `Remaining budget ${formatMoney(remaining)}. Monthly budget ${formatMoney(snapshot.budget)}.`,
+    `Projected spending if this pace continues ${formatMoney(snapshot.projected)}.`,
+    categories ? `Recent spending categories: ${categories}.` : "No spending categories yet.",
   ].join(" ");
 }
 
 async function askGemini(key: string, snapshot: CoachSnapshot): Promise<string> {
-  const model = process.env.GEMINI_VISION_MODEL?.trim() || "gemini-3.5-flash-lite";
+  const model = process.env.GEMINI_COACH_MODEL?.trim() || "gemini-3.5-flash-lite";
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(12000),
       body: JSON.stringify({
         systemInstruction: {
           parts: [
             {
-              text: "You are Aura, a warm Burmese friend who coaches a personal budget. Reply with one or two short sentences in casual spoken Burmese (Myanmar script) only. No English sentences, no markdown, no lists, no emojis. Keep every amount exactly as written, including Ks. If spending is on pace to pass the budget, tease them lightly. If they are under budget, praise them. If income is missing, remind them to log this month's salary. If the month is empty, invite a salary or a receipt. Do not invent purchases.",
+              text: "You are Aura, a witty Yangon friend coaching someone's monthly money. Write only in casual spoken Burmese, Myanmar script, the way friends talk, with a little slang. One or two short sentences. Do not use English words at all. The only non-Burmese text allowed is a number plus Ks, copied exactly from the summary. If they are spending faster than the budget, tease them. If they are under budget, praise them. If income arrived and spending is still light, welcome the fresh salary. If the month is empty, invite them to log a salary or a receipt. Do not invent shops, items, or numbers.",
             },
           ],
         },
         contents: [{ parts: [{ text: brief(snapshot) }] }],
-        generationConfig: { temperature: 0.6, maxOutputTokens: 120 },
+        generationConfig: { temperature: 0.85, maxOutputTokens: 160 },
       }),
     },
   );
@@ -63,23 +60,50 @@ async function askGemini(key: string, snapshot: CoachSnapshot): Promise<string> 
       ? (payload as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }).candidates?.[0]
           ?.content?.parts
       : [];
-  const text = (parts ?? []).map((part) => part.text ?? "").join(" ").trim();
-  if (!text) throw new Error("empty coach reply");
-  return clip(text);
+  const texts = (parts ?? []).map((part) => part.text ?? "").filter((part) => part.trim());
+  const text = texts.sort((left, right) => (right.match(/[\u1000-\u109F]/g)?.length ?? 0) - (left.match(/[\u1000-\u109F]/g)?.length ?? 0))[0] ?? "";
+  const message = clip(text);
+  if (message) return message;
+  throw new Error("empty coach reply");
 }
 
-export async function POST(request: Request) {
-  const body: unknown = await request.json().catch(() => null);
-  if (!isSnapshot(body)) {
-    return Response.json({ message: "ဒီလ ဝင်ငွေနဲ့ အသုံးစရိတ်ကို မမြင်ရသေးဘူး။ နည်းနည်းနေပြီး ပြန်ကြည့်ပါ။"}, { status: 400 });
-  }
-  const fallback = localCoachMessage(body);
+async function monthSnapshot(): Promise<CoachSnapshot> {
+  const ledger = await fetchRemoteLedger();
+  const month = expensesInMonth(ledger.expenses);
+  const snapshot = buildCoachSnapshot(month, ledger.budget);
+  const categories = totalsByCategory(ofType(month, "expense")).slice(0, 5);
+  return {
+    ...snapshot,
+    categories: categories.map((row) => ({ name: row.category, amount: row.total })),
+  };
+}
+
+export async function GET() {
   const key = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
-  if (!key) return Response.json({ message: fallback });
+  if (!key) {
+    return Response.json({ message: "Gemini key မရှိသေးလို့ အကြံမပေးနိုင်သေးဘူး။" }, { status: 503 });
+  }
   try {
-    const message = await askGemini(key, body);
-    return Response.json({ message: message || fallback });
+    const snapshot = isSupabaseConfigured() ? await monthSnapshot() : buildCoachSnapshot([], 0);
+    let message = "";
+    for (let attempt = 0; attempt < 2 && !message; attempt += 1) {
+      try {
+        message = await askGemini(key, snapshot);
+      } catch {
+        message = "";
+      }
+    }
+    if (!message) {
+      return Response.json(
+        { message: "Gemini က အခု ခဏမအားသေးဘူး။ နည်းနည်းနေပြီး ပြန်ကြည့်ပါ။" },
+        { status: 502 },
+      );
+    }
+    return Response.json({ message });
   } catch {
-    return Response.json({ message: fallback });
+    return Response.json(
+      { message: "Gemini က အခု ခဏမအားသေးဘူး။ နည်းနည်းနေပြီး ပြန်ကြည့်ပါ။" },
+      { status: 502 },
+    );
   }
 }
