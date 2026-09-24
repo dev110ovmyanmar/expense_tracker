@@ -1,18 +1,19 @@
 import { fallbackReceipt, extractPdfText, extractSvgText, parseReceiptText } from "@/lib/parse-receipt";
+import { parseVoucher, voucherToOCR } from "@/lib/vision-receipt";
 import { DEFAULT_CURRENCY, type LineItem, type OCRData } from "@/types/expense";
 
 export const OCR_STEPS = [
   {
     title: "Uploading image",
-    detail: "Reading the file on this device",
+    detail: "Sending the voucher image to the vision model",
   },
   {
     title: "Detecting vendor & totals",
-    detail: "Finding the shop, date, and the grand total in kyat",
+    detail: "Reading the shop name and the grand total",
   },
   {
     title: "Parsing line items & category",
-    detail: "Leaving cash, change, and tax off the amount you save",
+    detail: "Checking item names, quantities, and unit prices",
   },
 ] as const;
 
@@ -28,14 +29,31 @@ export function fileKind(file: File): "image" | "pdf" | null {
   return null;
 }
 
-async function readPhotoText(file: File): Promise<string> {
+async function readVision(file: File): Promise<OCRData> {
   const body = new FormData();
   body.append("file", file);
   const response = await fetch("/api/ocr", { method: "POST", body });
-  if (!response.ok) return "";
-  const payload: unknown = await response.json();
-  if (typeof payload !== "object" || payload === null || !("text" in payload)) return "";
-  return typeof payload.text === "string" ? payload.text : "";
+  const payload: unknown = await response.json().catch(() => null);
+  const record = typeof payload === "object" && payload !== null ? payload : {};
+  const error = "error" in record && typeof record.error === "string" ? record.error : "";
+  const voucher = "voucher" in record ? parseVoucher(record.voucher) : null;
+  if (voucher) return voucherToOCR(voucher);
+  const fallback = fallbackReceipt(file.name);
+  return {
+    vendor: fallback.vendor,
+    date: fallback.date,
+    total: 0,
+    totalFound: false,
+    paid: null,
+    change: null,
+    currency: DEFAULT_CURRENCY,
+    category: fallback.category,
+    notes: error || fallback.notes,
+    lineItems: [],
+    confidence: 0.3,
+    matchedSample: false,
+    warning: error || "The vision model could not read this voucher.",
+  };
 }
 
 async function readReceiptSource(file: File): Promise<string> {
@@ -43,7 +61,7 @@ async function readReceiptSource(file: File): Promise<string> {
   const isSvg = file.type.includes("svg") || name.endsWith(".svg");
   const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
   const isText = file.type.startsWith("text/") || name.endsWith(".txt");
-  if (!isSvg && !isPdf && !isText) return readPhotoText(file);
+  if (!isSvg && !isPdf && !isText) return "";
 
   if (isPdf) {
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -82,8 +100,17 @@ function toOCRData(fileName: string, source: string): OCRData {
   };
 }
 
+function isRaster(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return (
+    ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type) ||
+    ["png", "jpg", "jpeg", "webp", "gif"].some((ext) => name.endsWith(`.${ext}`))
+  );
+}
+
 export async function extractReceipt(file: File): Promise<OCRData> {
   try {
+    if (isRaster(file)) return await readVision(file);
     const source = await readReceiptSource(file);
     return toOCRData(file.name, source);
   } catch {

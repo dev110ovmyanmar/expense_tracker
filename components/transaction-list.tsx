@@ -131,7 +131,12 @@ export function TransactionList({
                         <ul className="grid gap-1">
                           {expense.lineItems.map((item) => (
                             <li key={item.id} className="flex justify-between gap-3 font-mono text-xs">
-                              <span className="font-sans">{item.description}</span>
+                              <span className="font-sans">
+                                {item.description}
+                                {item.quantity && item.unitPrice
+                                  ? ` · ${item.quantity} × ${formatMoney(item.unitPrice)}`
+                                  : ""}
+                              </span>
                               <span>{formatMoney(item.amount)}</span>
                             </li>
                           ))}

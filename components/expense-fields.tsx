@@ -136,7 +136,7 @@ export function ExpenseFields({
               update({
                 lineItems: [
                   ...draft.lineItems,
-                  { id: crypto.randomUUID(), description: "", amount: "" },
+                  { id: crypto.randomUUID(), description: "", quantity: "", unitPrice: "", amount: "" },
                 ],
               })
             }
@@ -152,7 +152,7 @@ export function ExpenseFields({
         ) : (
           <ul className="grid gap-2">
             {draft.lineItems.map((line, index) => (
-              <li key={line.id} className="flex items-center gap-2">
+              <li key={line.id} className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_4.5rem_7rem_8rem_auto] sm:items-center">
                 <Input
                   aria-label={`Line ${index + 1} description`}
                   value={line.description}
@@ -163,8 +163,36 @@ export function ExpenseFields({
                       ),
                     })
                   }
-                  placeholder="Description"
-                  className="h-10"
+                  placeholder="Item name"
+                  className="h-10 sm:col-auto col-span-2"
+                />
+                <Input
+                  aria-label={`Line ${index + 1} quantity`}
+                  inputMode="decimal"
+                  value={line.quantity}
+                  onChange={(event) =>
+                    update({
+                      lineItems: draft.lineItems.map((item) =>
+                        item.id === line.id ? { ...item, quantity: event.target.value } : item,
+                      ),
+                    })
+                  }
+                  placeholder="Qty"
+                  className="h-10 font-mono"
+                />
+                <Input
+                  aria-label={`Line ${index + 1} unit price`}
+                  inputMode="decimal"
+                  value={line.unitPrice}
+                  onChange={(event) =>
+                    update({
+                      lineItems: draft.lineItems.map((item) =>
+                        item.id === line.id ? { ...item, unitPrice: event.target.value } : item,
+                      ),
+                    })
+                  }
+                  placeholder="Unit price"
+                  className="h-10 font-mono"
                 />
                 <Input
                   aria-label={`Line ${index + 1} amount`}
@@ -177,8 +205,8 @@ export function ExpenseFields({
                       ),
                     })
                   }
-                  placeholder="1,650"
-                  className="h-10 w-36 shrink-0 font-mono"
+                  placeholder="Line total"
+                  className="h-10 font-mono"
                 />
                 <Button
                   type="button"

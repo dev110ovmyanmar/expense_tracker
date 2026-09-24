@@ -117,6 +117,9 @@ export function OCRScanner() {
         setOcr(data);
         setDraft(draftFromOCR(data));
         setPhase("review");
+        if (data.warning) {
+          toast.error("Vision read needs attention", { description: data.warning });
+        }
       }, wait);
     });
   }
@@ -277,8 +280,8 @@ export function OCRScanner() {
                 <CardTitle>Extracted fields</CardTitle>
                 <CardDescription>
                   {ocr.totalFound && confidence >= 70
-                    ? "The Total line is filled in kyat. Change any amount before you add it."
-                    : "The read is incomplete. Type the Total in kyat and leave out cash tendered or change."}
+                    ? `${ocr.vendor} is filled from the voucher. The amount is the grand total. Check each item before you add it.`
+                    : "The vision read is incomplete. Type the shop and the grand total in kyat."}
                 </CardDescription>
               </div>
               <Badge variant="secondary">{confidence}% match</Badge>
@@ -350,8 +353,8 @@ export function OCRScanner() {
           </span>
           <h2 className="mt-4 font-heading text-2xl tracking-tight">Drop a receipt or voucher</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-            PNG, JPG, WEBP, SVG, or PDF. Aura reads the print and fills the grand total in kyat.
-            Correct the amount before it joins the ledger.
+            PNG or JPG vouchers are sent to a vision model, which returns the shop, items, and grand total.
+            Check the form before it joins the ledger.
           </p>
           <Button asChild className="mt-5 h-10">
             <label htmlFor="receipt-upload">
@@ -384,8 +387,6 @@ export function OCRScanner() {
 }
 
 function ReceiptReadout({ ocr }: { ocr: OCRData }) {
-  const tendered = ocr.paid !== null || ocr.change !== null;
-  if (!tendered && ocr.totalFound) return null;
   return (
     <div
       className={`rounded-lg px-3 py-2 text-sm ${
@@ -394,12 +395,10 @@ function ReceiptReadout({ ocr }: { ocr: OCRData }) {
     >
       {ocr.totalFound ? (
         <p>
-          Cash and change stay out of the total
-          {ocr.paid !== null ? ` · tendered ${formatMoney(ocr.paid)}` : ""}
-          {ocr.change !== null ? ` · change ${formatMoney(ocr.change)}` : ""}.
+          Amount is the grand total{ocr.invoiceNo ? ` · invoice ${ocr.invoiceNo}` : ""}. Totals, tax, and service charge are not item lines.
         </p>
       ) : (
-        <p>No Total line was read. Enter the expense in kyat. Currency stays MMK.</p>
+        <p>{ocr.warning || "No grand total was read. Enter the amount in kyat. Currency stays MMK."}</p>
       )}
     </div>
   );

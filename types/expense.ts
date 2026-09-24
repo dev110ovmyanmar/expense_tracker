@@ -23,6 +23,27 @@ export interface LineItem {
   id: string;
   description: string;
   amount: number;
+  quantity?: number;
+  unitPrice?: number;
+}
+
+export interface VoucherItem {
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface VoucherScan {
+  shopName: string;
+  date: string;
+  invoiceNo: string;
+  items: VoucherItem[];
+  subtotal: number;
+  tax: number;
+  serviceCharge: number;
+  grandTotal: number;
+  currency: string;
 }
 
 export interface Expense {
@@ -53,11 +74,15 @@ export interface OCRData {
   lineItems: LineItem[];
   confidence: number;
   matchedSample: boolean;
+  invoiceNo?: string;
+  warning?: string;
 }
 
 export interface DraftLineItem {
   id: string;
   description: string;
+  quantity: string;
+  unitPrice: string;
   amount: string;
 }
 

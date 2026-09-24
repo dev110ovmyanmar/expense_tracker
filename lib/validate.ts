@@ -47,6 +47,8 @@ export function draftFromExpense(expense: Expense): ExpenseDraft {
     lineItems: expense.lineItems.map((item) => ({
       id: item.id,
       description: item.description,
+      quantity: item.quantity ? moneyInput(item.quantity) : "",
+      unitPrice: item.unitPrice ? moneyInput(item.unitPrice) : "",
       amount: moneyInput(item.amount),
     })),
   };
@@ -62,6 +64,8 @@ export function draftFromOCR(data: OCRData): ExpenseDraft {
     lineItems: data.lineItems.map((item) => ({
       id: item.id,
       description: item.description,
+      quantity: item.quantity ? moneyInput(item.quantity) : "",
+      unitPrice: item.unitPrice ? moneyInput(item.unitPrice) : "",
       amount: moneyInput(item.amount),
     })),
   };
@@ -112,7 +116,23 @@ export function validateDraft(
       errors.lineItems = "Line amounts should look like 1,200 or 1,200 Ks.";
       break;
     }
-    lineItems.push({ id: line.id, description, amount: lineAmount });
+    const quantity = line.quantity.trim() ? parseMoney(line.quantity) : null;
+    const unitPrice = line.unitPrice.trim() ? parseMoney(line.unitPrice) : null;
+    if (line.quantity.trim() && quantity === null) {
+      errors.lineItems = "Quantity should be a number.";
+      break;
+    }
+    if (line.unitPrice.trim() && unitPrice === null) {
+      errors.lineItems = "Unit price should look like 6,500.";
+      break;
+    }
+    lineItems.push({
+      id: line.id,
+      description,
+      amount: lineAmount,
+      ...(quantity !== null ? { quantity } : {}),
+      ...(unitPrice !== null ? { unitPrice } : {}),
+    });
   }
 
   const notes = draft.notes.trim();

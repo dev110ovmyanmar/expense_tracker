@@ -22,7 +22,7 @@ Open [http://localhost:3000](http://localhost:3000).
 - Amounts are Myanmar kyat and display with thousand separators, such as `1,650 Ks`.
 - Light and dark mode follow the system, and can be switched from the sidebar.
 
-Photos are recognized on the Aura server running on this computer. SVG, PDF, and text files are read directly. Nothing is sent to an outside vision service. Review the preview before confirming. Images are not stored with the expense.
+Photos are sent to a vision model (GPT-4o when `OPENAI_API_KEY` is set, otherwise Gemini when `GEMINI_API_KEY` or `GOOGLE_API_KEY` is set). The model must return the shop, items, and grand total as JSON. Built-in SVG samples are still read from their text. Without a key, a photo opens an empty form instead of crashing. Images are not stored with the expense.
 
 ## Scripts
 

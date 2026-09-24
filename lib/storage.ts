@@ -29,7 +29,17 @@ function sanitizeLineItems(value: unknown, expenseId: string): LineItem[] {
     const amount = typeof item.amount === "number" ? item.amount : Number.NaN;
     if (!description || !Number.isFinite(amount) || amount < 0) return [];
     const id = typeof item.id === "string" && item.id ? item.id : `${expenseId}-line-${index + 1}`;
-    return [{ id, description, amount: Math.round(amount * 100) / 100 }];
+    const quantity = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : undefined;
+    const unitPrice = typeof item.unitPrice === "number" && item.unitPrice >= 0 ? item.unitPrice : undefined;
+    return [
+      {
+        id,
+        description,
+        amount: Math.round(amount * 100) / 100,
+        ...(quantity !== undefined ? { quantity } : {}),
+        ...(unitPrice !== undefined ? { unitPrice } : {}),
+      },
+    ];
   });
 }
 
