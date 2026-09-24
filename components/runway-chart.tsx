@@ -1,14 +1,16 @@
 "use client";
 
-import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney } from "@/lib/format";
-import { forecastRunway } from "@/lib/runway";
+import { forecastRunway, type RunwayPoint } from "@/lib/runway";
 import type { Expense } from "@/types/expense";
 
 export function RunwayChart({ expenses }: { expenses: Expense[] }) {
   const forecast = forecastRunway(expenses);
   const low = forecast.lowDay !== null;
+  const rising = forecast.endingBalance >= forecast.startingBalance && !low;
+  const stroke = low ? "var(--destructive)" : rising ? "#1f8a5b" : "var(--primary)";
 
   return (
     <Card>
@@ -30,9 +32,23 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
         </div>
         {forecast.ready ? (
           <>
-            <div className="h-64">
+            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={forecast.points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <AreaChart data={forecast.points} margin={{ top: 28, right: 20, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="runway-fill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={stroke} stopOpacity={0.32} />
+                      <stop offset="78%" stopColor={stroke} stopOpacity={0.06} />
+                      <stop offset="100%" stopColor={stroke} stopOpacity={0} />
+                    </linearGradient>
+                    <filter id="runway-glow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="2.4" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
                   <CartesianGrid stroke="var(--border)" vertical={false} />
                   <XAxis
                     dataKey="label"
@@ -50,7 +66,7 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
                       Math.abs(value) >= 1000 ? `${Math.round(value / 1000)}k` : String(Math.round(value))
                     }
                   />
-                  <Tooltip content={<RunwayTooltip />} />
+                  <Tooltip content={<RunwayTooltip />} cursor={{ stroke: "var(--border)", strokeDasharray: "3 3" }} />
                   {forecast.warningLevel > 0 ? (
                     <ReferenceLine
                       y={forecast.warningLevel}
@@ -59,15 +75,16 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
                       label={{ value: "Low", fill: "var(--destructive)", fontSize: 11, position: "insideTopRight" }}
                     />
                   ) : null}
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="balance"
-                    stroke={low ? "var(--destructive)" : "var(--primary)"}
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4 }}
+                    stroke={stroke}
+                    strokeWidth={2.5}
+                    fill="url(#runway-fill)"
+                    dot={(props) => <RunwayDot {...props} stroke={stroke} />}
+                    activeDot={{ r: 5, fill: stroke, stroke: "var(--card)", strokeWidth: 2 }}
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
             <p className={`text-sm ${low ? "text-destructive" : "text-muted-foreground"}`}>
@@ -93,6 +110,32 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
   );
 }
 
+function RunwayDot({
+  cx,
+  cy,
+  payload,
+  stroke,
+}: {
+  cx?: number;
+  cy?: number;
+  payload?: RunwayPoint;
+  stroke: string;
+}) {
+  if (cx == null || cy == null || !payload) return null;
+  const marked = payload.day === 0 || payload.day === 30;
+  if (!marked) return <circle cx={cx} cy={cy} r={2.4} fill={stroke} />;
+  const title = payload.day === 0 ? "Today" : "Day 30";
+  return (
+    <g filter="url(#runway-glow)">
+      <circle cx={cx} cy={cy} r={10} fill={stroke} opacity={0.18} />
+      <circle cx={cx} cy={cy} r={4.5} fill={stroke} stroke="var(--card)" strokeWidth={2} />
+      <text x={cx} y={cy - 14} textAnchor="middle" fill={stroke} fontSize={11} fontWeight={600}>
+        {title}
+      </text>
+    </g>
+  );
+}
+
 function Figure({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
   return (
     <div className="rounded-xl bg-muted/60 px-3 py-3">
@@ -107,16 +150,17 @@ function RunwayTooltip({
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: { label: string; balance: number; low: boolean } }>;
+  payload?: Array<{ payload?: RunwayPoint }>;
 }) {
   const point = payload?.[0]?.payload;
   if (!active || !point) return null;
+  const mark = point.day === 0 ? "Today" : point.day === 30 ? "Day 30" : `Day ${point.day}`;
   return (
-    <div className="rounded-lg bg-popover px-3 py-2 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10">
-      <p className="font-medium">{point.label}</p>
-      <p className={`font-mono ${point.low ? "text-destructive" : "text-muted-foreground"}`}>
-        {formatMoney(point.balance)}
-      </p>
+    <div className="rounded-xl bg-popover px-3 py-2 text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10">
+      <p className="text-xs text-muted-foreground">{mark}</p>
+      <p className="font-medium">{point.when}</p>
+      <p className="mt-1 text-xs text-muted-foreground">Projected balance</p>
+      <p className={`font-mono text-base ${point.low ? "text-destructive" : ""}`}>{formatMoney(point.balance)}</p>
     </div>
   );
 }

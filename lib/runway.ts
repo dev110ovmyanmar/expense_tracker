@@ -8,6 +8,7 @@ const WARNING_DAYS = 7;
 export interface RunwayPoint {
   day: number;
   label: string;
+  when: string;
   balance: number;
   low: boolean;
 }
@@ -82,6 +83,7 @@ export function forecastRunway(expenses: Expense[], now = new Date()): RunwayFor
     points.push({
       day,
       label: day === 0 ? "Today" : date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      when: date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
       balance,
       low,
     });
