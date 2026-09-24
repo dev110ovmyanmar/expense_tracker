@@ -14,9 +14,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useExpenses } from "@/components/expense-provider";
-import { formatDate, formatMoney, formatMonth, parseMoney } from "@/lib/format";
+import { formatMoney, parseMoney } from "@/lib/format";
 import { allocatedThisMonth, goalProgress, neededMonthly } from "@/lib/goals";
 import type { SavingsGoal, SavingsGoalInput } from "@/types/planning";
+
+function burmeseDate(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  if (!year || !month || !day) return iso;
+  return new Date(year, month - 1, day).toLocaleDateString("my-MM", { day: "numeric", month: "short", year: "numeric" });
+}
 
 export function SavingsGoals({ income, net }: { income: number; net: number }) {
   const { goals, saving, addGoal, updateGoal, removeGoal, addToGoal } = useExpenses();
@@ -24,29 +30,29 @@ export function SavingsGoals({ income, net }: { income: number; net: number }) {
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState<SavingsGoal | null>(null);
   const planned = goals.reduce((sum, goal) => sum + goal.monthlyAllocation, 0);
-  const month = formatMonth();
+  const month = new Date().toLocaleDateString("my-MM", { month: "long", year: "numeric" });
 
   return (
     <section id="goals" className="grid gap-3">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h2 className="font-heading text-xl">Savings goals</h2>
+          <h2 className="font-heading text-xl">စုငွေပန်းတိုင်</h2>
           <p className="text-sm text-muted-foreground">
-            Envelopes for a target amount. Setting money aside does not create a spending line.
+            ပန်းတိုင်ပမာဏအတွက် အိတ်များ။ ဘေးဖယ်ထားခြင်းက အသုံးစရိတ်စာရင်း မဖြစ်ပါ။
           </p>
         </div>
         <Button type="button" className="min-h-11 shrink-0" onClick={() => { setEditing(null); setOpen(true); }}>
-          Add goal
+          ပန်းတိုင်ထည့်
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        {month}: {formatMoney(income)} income, {formatMoney(Math.max(net, 0))} left after spending.
-        {planned > 0 ? ` Envelopes ask for ${formatMoney(planned)} a month.` : ""}
-        {planned > Math.max(net, 0) && income > 0 ? " That is more than this month's net." : ""}
+        {month}။ ဝင်ငွေ {formatMoney(income)}၊ သုံးပြီး ကျန် {formatMoney(Math.max(net, 0))}။
+        {planned > 0 ? ` အိတ်များက တစ်လ ${formatMoney(planned)} တောင်းထားသည်။` : ""}
+        {planned > Math.max(net, 0) && income > 0 ? " ဒီလ အသားတင်ထက် ပိုများနေသည်။" : ""}
       </p>
       {goals.length === 0 ? (
         <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-          No envelopes yet. Try a travel fund or emergency savings.
+          အိတ် မရှိသေးပါ။ ခရီးစရိတ် သို့မဟုတ် အရေးပေါ်စုငွေ စမ်းကြည့်ပါ။
         </p>
       ) : (
         <ul className="grid gap-3">
@@ -65,25 +71,25 @@ export function SavingsGoals({ income, net }: { income: number; net: number }) {
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={progress.percent}
-                  aria-label={`${goal.name} saved`}
+                  aria-label={`${goal.name} စုပြီး`}
                   className="h-2 overflow-hidden rounded-full bg-muted"
                 >
                   <div className="h-full rounded-full bg-emerald-600" style={{ width: `${progress.percent}%` }} />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {formatMoney(goal.savedAmount)} of {formatMoney(goal.targetAmount)}
-                  {goal.targetDate ? ` · by ${formatDate(goal.targetDate)}` : ""}
-                  {goal.monthlyAllocation > 0 ? ` · ${formatMoney(goal.monthlyAllocation)} from monthly income` : ""}
+                  {formatMoney(goal.savedAmount)} / {formatMoney(goal.targetAmount)}
+                  {goal.targetDate ? ` · ${burmeseDate(goal.targetDate)} မတိုင်မီ` : ""}
+                  {goal.monthlyAllocation > 0 ? ` · လစဉ်ဝင်ငွေမှ ${formatMoney(goal.monthlyAllocation)}` : ""}
                 </p>
                 {pace !== null && !progress.complete ? (
                   <p className="text-xs text-muted-foreground">
-                    About {formatMoney(pace)} a month reaches the date.
+                    ရက်ရောက်ဖို့ တစ်လလျှင် {formatMoney(pace)} ခန့် လိုသည်။
                     {goal.monthlyAllocation > 0 && goal.monthlyAllocation + 1 < pace
-                      ? ` The envelope is ${formatMoney(pace - goal.monthlyAllocation)} short of that pace.`
+                      ? ` အိတ်က ဒီနှုန်းထက် ${formatMoney(pace - goal.monthlyAllocation)} နည်းနေသည်။`
                       : ""}
                   </p>
                 ) : null}
-                {progress.complete ? <p className="text-xs text-emerald-700 dark:text-emerald-400">Target reached.</p> : null}
+                {progress.complete ? <p className="text-xs text-emerald-700 dark:text-emerald-400">ပန်းတိုင် ရောက်ပါပြီ။</p> : null}
                 <div className="flex flex-wrap gap-2">
                   {goal.monthlyAllocation > 0 ? (
                     <Button
@@ -92,16 +98,16 @@ export function SavingsGoals({ income, net }: { income: number; net: number }) {
                       disabled={saving || setAside}
                       onClick={() => {
                         void addToGoal(goal.id, goal.monthlyAllocation, true).then(
-                          () => toast.success("Set aside", { description: `${formatMoney(goal.monthlyAllocation)} for ${goal.name}` }),
-                          (error: unknown) => toast.error("Could not set this aside", { description: error instanceof Error ? error.message : "Try again." }),
+                          () => toast.success("ဘေးဖယ်ပြီးပါပြီ", { description: `${goal.name} အတွက် ${formatMoney(goal.monthlyAllocation)}` }),
+                          (error: unknown) => toast.error("ဘေးမဖယ်နိုင်သေးပါ", { description: error instanceof Error ? error.message : "ခဏနေပြီး ပြန်ကြိုးစားပါ။" }),
                         );
                       }}
                     >
-                      {setAside ? "Set aside this month" : `Set aside ${formatMoney(goal.monthlyAllocation)}`}
+                      {setAside ? "ဒီလ ဖယ်ပြီးပါပြီ" : `${formatMoney(goal.monthlyAllocation)} ဖယ်မည်`}
                     </Button>
                   ) : null}
-                  <Button type="button" size="sm" variant="outline" onClick={() => setAdding(goal)}>Add amount</Button>
-                  <Button type="button" size="sm" variant="outline" onClick={() => { setEditing(goal); setOpen(true); }}>Edit</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setAdding(goal)}>ပမာဏထည့်</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setEditing(goal); setOpen(true); }}>ပြင်မည်</Button>
                   <Button
                     type="button"
                     size="sm"
@@ -109,12 +115,12 @@ export function SavingsGoals({ income, net }: { income: number; net: number }) {
                     disabled={saving}
                     onClick={() => {
                       void removeGoal(goal.id).then(
-                        () => toast.success("Goal removed", { description: goal.name }),
-                        (error: unknown) => toast.error("Could not remove this goal", { description: error instanceof Error ? error.message : "Try again." }),
+                        () => toast.success("ပန်းတိုင် ဖယ်ပြီးပါပြီ", { description: goal.name }),
+                        (error: unknown) => toast.error("ပန်းတိုင် မဖယ်နိုင်သေးပါ", { description: error instanceof Error ? error.message : "ခဏနေပြီး ပြန်ကြိုးစားပါ။" }),
                       );
                     }}
                   >
-                    Delete
+                    ဖျက်မည်
                   </Button>
                 </div>
               </li>
@@ -159,8 +165,8 @@ function GoalDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{goal ? "Edit goal" : "Add a savings goal"}</DialogTitle>
-          <DialogDescription>Set the target and how much of each month of income goes into this envelope.</DialogDescription>
+          <DialogTitle>{goal ? "ပန်းတိုင် ပြင်မည်" : "စုငွေပန်းတိုင် ထည့်မည်"}</DialogTitle>
+          <DialogDescription>ပန်းတိုင်ပမာဏနဲ့ လစဉ်ဝင်ငွေထဲက ဘယ်လောက်ထည့်မလဲ သတ်မှတ်ပါ။</DialogDescription>
         </DialogHeader>
         <form
           className="grid gap-3"
@@ -170,7 +176,7 @@ function GoalDialog({
             const monthlyAllocation = parseMoney(monthly || "0");
             const savedAmount = parseMoney(saved || "0");
             if (!name.trim() || targetAmount === null || targetAmount <= 0 || monthlyAllocation === null || savedAmount === null) {
-              setError("Add a name and a target amount.");
+              setError("နာမည်နဲ့ ပန်းတိုင်ပမာဏ ထည့်ပါ။");
               return;
             }
             void onSave({
@@ -181,40 +187,40 @@ function GoalDialog({
               savedAmount,
             }).then(
               () => {
-                toast.success(goal ? "Goal updated" : "Goal added");
+                toast.success(goal ? "ပန်းတိုင် ပြင်ပြီးပါပြီ" : "ပန်းတိုင် ထည့်ပြီးပါပြီ");
                 onOpenChange(false);
               },
-              (saveError: unknown) => setError(saveError instanceof Error ? saveError.message : "Could not save."),
+              (saveError: unknown) => setError(saveError instanceof Error ? saveError.message : "မသိမ်းနိုင်သေးပါ။"),
             );
           }}
         >
           <div className="grid gap-1.5">
-            <Label htmlFor="goal-name">Name</Label>
-            <Input id="goal-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Travel fund" className="h-11" />
+            <Label htmlFor="goal-name">နာမည်</Label>
+            <Input id="goal-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="ခရီးစရိတ်" className="h-11" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="grid gap-1.5">
-              <Label htmlFor="goal-target">Target</Label>
+              <Label htmlFor="goal-target">ပန်းတိုင်</Label>
               <Input id="goal-target" inputMode="decimal" value={target} onChange={(event) => setTarget(event.target.value)} className="h-11 font-mono" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="goal-date">Target date</Label>
+              <Label htmlFor="goal-date">ရက်စွဲ</Label>
               <Input id="goal-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="h-11" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="grid gap-1.5">
-              <Label htmlFor="goal-monthly">Each month</Label>
-              <Input id="goal-monthly" inputMode="decimal" value={monthly} onChange={(event) => setMonthly(event.target.value)} placeholder="From income" className="h-11 font-mono" />
+              <Label htmlFor="goal-monthly">လစဉ်</Label>
+              <Input id="goal-monthly" inputMode="decimal" value={monthly} onChange={(event) => setMonthly(event.target.value)} placeholder="ဝင်ငွေမှ" className="h-11 font-mono" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="goal-saved">Already saved</Label>
+              <Label htmlFor="goal-saved">စုပြီးသား</Label>
               <Input id="goal-saved" inputMode="decimal" value={saved} onChange={(event) => setSaved(event.target.value)} className="h-11 font-mono" />
             </div>
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
-            <Button type="submit" className="min-h-11">{goal ? "Save goal" : "Add goal"}</Button>
+            <Button type="submit" className="min-h-11">{goal ? "ပန်းတိုင် သိမ်းမည်" : "ပန်းတိုင်ထည့်"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -231,8 +237,8 @@ function AddAmountDialog({ goal, onOpenChange }: { goal: SavingsGoal | null; onO
     <Dialog open={Boolean(goal)} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add to {goal?.name}</DialogTitle>
-          <DialogDescription>This stays in the envelope and does not add an expense.</DialogDescription>
+          <DialogTitle>{goal?.name} ထဲ ထည့်မည်</DialogTitle>
+          <DialogDescription>ဒီပမာဏက အိတ်ထဲမှာပဲ နေပြီး အသုံးစရိတ် မဖြစ်ပါ။</DialogDescription>
         </DialogHeader>
         <form
           className="grid gap-3"
@@ -240,23 +246,23 @@ function AddAmountDialog({ goal, onOpenChange }: { goal: SavingsGoal | null; onO
             event.preventDefault();
             const parsed = parseMoney(amount);
             if (!goal || parsed === null || parsed <= 0) {
-              setError("Enter an amount.");
+              setError("ပမာဏ ထည့်ပါ။");
               return;
             }
             void addToGoal(goal.id, parsed).then(
               () => {
-                toast.success("Added to the envelope", { description: formatMoney(parsed) });
+                toast.success("အိတ်ထဲ ထည့်ပြီးပါပြီ", { description: formatMoney(parsed) });
                 setAmount("");
                 onOpenChange(false);
               },
-              (saveError: unknown) => setError(saveError instanceof Error ? saveError.message : "Could not add."),
+              (saveError: unknown) => setError(saveError instanceof Error ? saveError.message : "မထည့်နိုင်သေးပါ။"),
             );
           }}
         >
-          <Input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} className="h-11 font-mono" aria-label="Amount to add" />
+          <Input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} className="h-11 font-mono" aria-label="ထည့်မည့်ပမာဏ" />
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
-            <Button type="submit" className="min-h-11">Add to goal</Button>
+            <Button type="submit" className="min-h-11">ပန်းတိုင်ထဲ ထည့်မည်</Button>
           </DialogFooter>
         </form>
       </DialogContent>
