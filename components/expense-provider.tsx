@@ -18,6 +18,7 @@ interface ExpenseContextValue {
   budget: number;
   hydrated: boolean;
   storageWarning: boolean;
+  storageMessage: string | null;
   addExpense: (input: ExpenseInput) => Expense;
   updateExpense: (id: string, input: ExpenseInput) => void;
   deleteExpense: (id: string) => void;
@@ -40,6 +41,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       budget: ledger.budget,
       hydrated: ledger.ready,
       storageWarning: ledger.storageWarning,
+      storageMessage: ledger.storageMessage,
       addExpense,
       updateExpense,
       deleteExpense,

@@ -29,7 +29,7 @@ const NAV = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { storageWarning } = useExpenses();
+  const { storageWarning, storageMessage } = useExpenses();
 
   return (
     <div className="min-h-svh">
@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
             {storageWarning ? (
               <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                This browser blocked saving. Changes will disappear after a refresh.
+                {storageMessage ?? "This browser blocked saving. Changes will disappear after a refresh."}
               </p>
             ) : null}
             <div className="md:hidden">

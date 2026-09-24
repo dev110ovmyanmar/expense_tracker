@@ -2,7 +2,7 @@
 
 A daily personal expense ledger. Track spending against a monthly budget, filter the full ledger, and scan a receipt into an editable preview before it is saved.
 
-Expenses and the budget live in `localStorage` in this browser. Nothing is sent to a server.
+Expenses and the budget are stored in Supabase when `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set. Run `supabase/migrations/001_expenses.sql` in the Supabase SQL editor and turn on anonymous sign-in. On the first visit, a ledger already saved in this browser is copied up once. Without those keys, Aura keeps a temporary copy in the browser and shows a warning.
 
 ## Run it
 
