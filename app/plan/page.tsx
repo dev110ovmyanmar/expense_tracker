@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PlanBoard } from "@/components/plan-board";
 
 export const metadata: Metadata = {
-  title: "အစီအစဉ်",
+  title: "Plan",
 };
 
 export default function PlanPage() {

@@ -17,9 +17,9 @@ export function PlanBoard() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="အစီအစဉ်"
-        title="ဘေလ်နဲ့ စုငွေ"
-        description="ပုံသေဘေလ်ကို ရက်ရောက်ရင် ကိုယ်တိုင် မှတ်နိုင်ပါတယ်။ စုငွေအိတ်က ပန်းတိုင်ကို သုံးစွဲမှုအဖြစ် မရေတွက်ပါ။"
+        eyebrow="Plan"
+        title="Bills and savings"
+        description="Fixed bills on a schedule, and savings goals with a target."
       />
       {planningMessage ? (
         <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">

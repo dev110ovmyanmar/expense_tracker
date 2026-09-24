@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,31 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useExpenses } from "@/components/expense-provider";
-import { formatMoney, parseMoney, todayISO } from "@/lib/format";
+import { formatDate, formatMoney, parseMoney, todayISO } from "@/lib/format";
 import { scheduleCatchUp } from "@/lib/recurring";
 import { categoriesFor, type Category, type EntryType } from "@/types/expense";
-
-const CATEGORY_LABEL: Record<Category, string> = {
-  "Food & Beverages": "အစားအသောက်",
-  Groceries: "ကုန်စုံ",
-  Food: "ထမင်း",
-  Transport: "သွားလာရေး",
-  Utilities: "မီတာခ",
-  Entertainment: "ဖျော်ဖြေရေး",
-  Shopping: "ဈေးဝယ်",
-  Health: "ကျန်းမာရေး",
-  Housing: "အိမ်ငှား",
-  Other: "အခြား",
-  Salary: "လစာ",
-  Freelance: "အလွတ်အလုပ်",
-  Investments: "ရင်းနှီးမြှုပ်နှံ",
-};
-
-function burmeseDate(iso: string): string {
-  const [year, month, day] = iso.split("-").map(Number);
-  if (!year || !month || !day) return iso;
-  return new Date(year, month - 1, day).toLocaleDateString("my-MM", { day: "numeric", month: "short", year: "numeric" });
-}
 import type { Frequency, RecurringInput, RecurringItem } from "@/types/planning";
 
 export function FixedBills() {
@@ -52,75 +30,66 @@ export function FixedBills() {
   async function log(id: string, name: string) {
     try {
       await logRecurring(id);
-      toast.success("ဘေလ် မှတ်ပြီးပါပြီ", { description: name });
+      toast.success("Bill logged", { description: name });
     } catch (error) {
-      toast.error("ဘေလ် မမှတ်နိုင်သေးပါ", { description: error instanceof Error ? error.message : "ခဏနေပြီး ပြန်ကြိုးစားပါ။" });
+      toast.error("Could not log this bill", { description: error instanceof Error ? error.message : "Try again." });
     }
   }
 
   return (
-    <section id="bills" className="grid gap-3">
-      <div className="flex items-end justify-between gap-3">
+    <section id="bills" className="grid gap-2">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="font-heading text-xl">ပုံသေဘေလ်</h2>
-          <p className="text-sm text-muted-foreground">အိမ်ငှား၊ အင်တာနက်နဲ့ တခြား အပတ်စဉ် သို့မဟုတ် လစဉ် ကုန်ကျစရိတ်။</p>
+          <h2 className="text-base font-medium">Fixed bills</h2>
+          <p className="text-sm text-muted-foreground">Rent, internet, and subscriptions.</p>
         </div>
-        <Button type="button" className="min-h-11 shrink-0" onClick={() => { setEditing(null); setOpen(true); }}>
-          ဘေလ်ထည့်
+        <Button type="button" variant="outline" size="sm" className="min-h-9" onClick={() => { setEditing(null); setOpen(true); }}>
+          Add bill
         </Button>
       </div>
       {due.length > 0 ? (
-        <div className="grid gap-2 rounded-xl bg-primary/10 px-3 py-3">
-          <p className="text-sm font-medium">{due.length === 1 ? "ဘေလ် ၁ ခု ရောက်နေပါပြီ" : `ဘေလ် ${due.length} ခု ရောက်နေပါပြီ`}</p>
-          {due.map((item) => (
-            <div key={item.id} className="flex items-center justify-between gap-2 text-sm">
-              <span className="min-w-0 truncate">{item.name} · {formatMoney(item.amount)}</span>
-              <Button type="button" size="sm" className="min-h-9 shrink-0" disabled={saving} onClick={() => void log(item.id, item.name)}>
-                မှတ်မည်
-              </Button>
-            </div>
-          ))}
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-card px-3 py-2.5 ring-1 ring-foreground/10">
+          <p className="text-sm">{due.length === 1 ? "1 bill is due" : `${due.length} bills are due`}</p>
+          <Button
+            type="button"
+            size="sm"
+            disabled={saving}
+            onClick={() => {
+              for (const item of due) void log(item.id, item.name);
+            }}
+          >
+            Log due
+          </Button>
         </div>
       ) : null}
       {recurring.length === 0 ? (
-        <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-          ပုံသေဘေလ် မရှိသေးပါ။ အိမ်ငှား သို့မဟုတ် စာရင်းသွင်းမှု ထည့်ပါ။ ရက်ရောက်တိုင်း မှတ်ပေးနိုင်ပါတယ်။
+        <p className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+          No fixed bills yet.
         </p>
       ) : (
         <ul className="divide-y divide-border rounded-xl bg-card px-3 ring-1 ring-foreground/10">
           {recurring.map((item) => {
-            const waiting = scheduleCatchUp(item.nextDue, item.frequency, today).dates.length;
+            const waiting = item.active ? scheduleCatchUp(item.nextDue, item.frequency, today).dates.length : 0;
             return (
-              <li key={item.id} className="grid gap-1 py-3">
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="truncate font-medium">{item.name}</p>
-                  <p className="shrink-0 font-mono text-sm tabular-nums">{formatMoney(item.amount)}</p>
+              <li key={item.id} className="flex items-center gap-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-sm font-medium">{item.name}</p>
+                    <p className="shrink-0 font-mono text-sm tabular-nums">{formatMoney(item.amount)}</p>
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {item.frequency === "weekly" ? "Weekly" : "Monthly"}
+                    {" · "}
+                    {item.category}
+                    {" · "}
+                    {waiting > 0 ? "Due" : formatDate(item.nextDue)}
+                    {item.autoLog ? " · Auto" : ""}
+                    {item.active ? "" : " · Paused"}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {item.frequency === "weekly" ? "အပတ်စဉ်" : "လစဉ်"} · {CATEGORY_LABEL[item.category]} · {waiting > 0 ? "ရောက်နေပြီ" : `နောက်တစ်ကြိမ် ${burmeseDate(item.nextDue)}`}
-                  {item.autoLog ? " · ကိုယ်တိုင်မှတ်မည်" : " · အရင်မေးမည်"}
-                  {item.active ? "" : " · ခေတ္တရပ်"}
-                </p>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {waiting > 0 && item.active ? (
-                    <Button type="button" size="sm" disabled={saving} onClick={() => void log(item.id, item.name)}>ယခုမှတ်</Button>
-                  ) : null}
-                  <Button type="button" size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>ပြင်မည်</Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={saving}
-                    onClick={() => {
-                      void removeRecurring(item.id).then(
-                        () => toast.success("ဘေလ် ဖယ်ပြီးပါပြီ", { description: item.name }),
-                        (error: unknown) => toast.error("ဘေလ် မဖယ်နိုင်သေးပါ", { description: error instanceof Error ? error.message : "ခဏနေပြီး ပြန်ကြိုးစားပါ။" }),
-                      );
-                    }}
-                  >
-                    ဖျက်မည်
-                  </Button>
-                </div>
+                <Button type="button" variant="ghost" size="sm" className="shrink-0" onClick={() => { setEditing(item); setOpen(true); }}>
+                  Edit
+                </Button>
               </li>
             );
           })}
@@ -130,11 +99,13 @@ export function FixedBills() {
         key={editing?.id ?? "new"}
         open={open}
         item={editing}
+        saving={saving}
         onOpenChange={setOpen}
         onSave={async (input) => {
           if (editing) await updateRecurring(editing.id, input);
           else await addRecurring(input);
         }}
+        onDelete={editing ? async () => removeRecurring(editing.id) : undefined}
       />
     </section>
   );
@@ -143,13 +114,17 @@ export function FixedBills() {
 function BillDialog({
   open,
   item,
+  saving,
   onOpenChange,
   onSave,
+  onDelete,
 }: {
   open: boolean;
   item: RecurringItem | null;
+  saving: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (input: RecurringInput) => Promise<void>;
+  onDelete?: () => Promise<void>;
 }) {
   const [name, setName] = useState(item?.name ?? "");
   const [amount, setAmount] = useState(item ? String(item.amount) : "");
@@ -166,8 +141,8 @@ function BillDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{item ? "ဘေလ် ပြင်မည်" : "ပုံသေဘေလ် ထည့်မည်"}</DialogTitle>
-          <DialogDescription>လစဉ် သို့မဟုတ် အပတ်စဉ် ရွေးပါ။ ရက်ရောက်ရင် ကိုယ်တိုင်မှတ်မည်၊ သို့မဟုတ် အရင်မေးမည်။</DialogDescription>
+          <DialogTitle>{item ? "Edit bill" : "Add a fixed bill"}</DialogTitle>
+          <DialogDescription>Log it when the date arrives, or let Aura add it for you.</DialogDescription>
         </DialogHeader>
         <form
           className="grid gap-3"
@@ -175,7 +150,7 @@ function BillDialog({
             event.preventDefault();
             const parsed = parseMoney(amount);
             if (!name.trim() || parsed === null || parsed <= 0) {
-              setError("နာမည်နဲ့ ပမာဏ ထည့်ပါ။");
+              setError("Add a name and an amount.");
               return;
             }
             void onSave({
@@ -189,14 +164,14 @@ function BillDialog({
               active,
             }).then(
               () => {
-                toast.success(item ? "ဘေလ် ပြင်ပြီးပါပြီ" : "ဘေလ် ထည့်ပြီးပါပြီ");
+                toast.success(item ? "Bill updated" : "Bill added");
                 onOpenChange(false);
               },
-              (saveError: unknown) => setError(saveError instanceof Error ? saveError.message : "မသိမ်းနိုင်သေးပါ။"),
+              (saveError: unknown) => setError(saveError instanceof Error ? saveError.message : "Could not save."),
             );
           }}
         >
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+          <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
             {(["expense", "income"] as const).map((value) => (
               <button
                 key={value}
@@ -208,48 +183,72 @@ function BillDialog({
                   setCategory(next.includes(category) ? category : next[0]);
                 }}
               >
-                {value === "expense" ? "အသုံးစရိတ်" : "ဝင်ငွေ"}
+                {value === "expense" ? "Expense" : "Income"}
               </button>
             ))}
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="bill-name">နာမည်</Label>
-            <Input id="bill-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="အိမ်ငှား" className="h-11" />
-          </div>
+          <Field label="Name" id="bill-name">
+            <Input id="bill-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Rent" className="h-11" />
+          </Field>
           <div className="grid grid-cols-2 gap-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="bill-amount">ပမာဏ</Label>
+            <Field label="Amount" id="bill-amount">
               <Input id="bill-amount" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} className="h-11 font-mono" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="bill-due">နောက်ရက်</Label>
+            </Field>
+            <Field label="Next due" id="bill-due">
               <Input id="bill-due" type="date" value={nextDue} onChange={(event) => setNextDue(event.target.value)} className="h-11" />
-            </div>
+            </Field>
           </div>
-          <div className="grid gap-1.5">
-            <Label>အမျိုးအစား</Label>
+          <Field label="Category">
             <Select value={category} onValueChange={(value) => setCategory(value as Category)}>
               <SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {categories.map((entry) => <SelectItem key={entry} value={entry}>{CATEGORY_LABEL[entry]}</SelectItem>)}
+                {categories.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           <div className="grid grid-cols-2 gap-2">
-            <Choice label="ကြိမ်နှုန်း" value={frequency} options={[["monthly", "လစဉ်"], ["weekly", "အပတ်စဉ်"]]} onChange={(value) => setFrequency(value as Frequency)} />
-            <Choice label="ရက်ရောက်ရင်" value={autoLog ? "auto" : "ask"} options={[["ask", "မေးမည်"], ["auto", "မှတ်မည်"]]} onChange={(value) => setAutoLog(value === "auto")} />
+            <Choice label="Frequency" value={frequency} options={[["monthly", "Monthly"], ["weekly", "Weekly"]]} onChange={(value) => setFrequency(value as Frequency)} />
+            <Choice label="When due" value={autoLog ? "auto" : "ask"} options={[["ask", "Ask me"], ["auto", "Log it"]]} onChange={(value) => setAutoLog(value === "auto")} />
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />
-            အသုံးပြုနေသည်
+            Active
           </label>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <DialogFooter>
-            <Button type="submit" className="min-h-11">{item ? "ဘေလ် သိမ်းမည်" : "ဘေလ်ထည့်"}</Button>
+          <DialogFooter className="sm:justify-between">
+            {onDelete ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-destructive"
+                disabled={saving}
+                onClick={() => {
+                  void onDelete().then(
+                    () => {
+                      toast.success("Bill removed", { description: item?.name });
+                      onOpenChange(false);
+                    },
+                    (deleteError: unknown) => setError(deleteError instanceof Error ? deleteError.message : "Could not remove."),
+                  );
+                }}
+              >
+                Delete
+              </Button>
+            ) : <span />}
+            <Button type="submit" className="min-h-11">{item ? "Save bill" : "Add bill"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Field({ label, id, children }: { label: string; id?: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+    </div>
   );
 }
 

@@ -98,17 +98,15 @@ export function Dashboard() {
 
       <section className="grid gap-2 sm:grid-cols-2">
         <Link href="/plan#bills" className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
-          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">ပုံသေဘေလ်</p>
+          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Fixed bills</p>
           <p className="mt-1 text-sm">
-            {recurring.length === 0
-              ? "အိမ်ငှား၊ အင်တာနက် သို့မဟုတ် စာရင်းသွင်းမှု ထည့်ပါ။"
-              : `အချိန်ဇယား ${recurring.length} ခု`}
+            {recurring.length === 0 ? "None scheduled" : `${recurring.length} scheduled`}
           </p>
         </Link>
         <Link href="/plan#goals" className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
-          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">စုငွေပန်းတိုင်</p>
+          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Savings goals</p>
           <p className="mt-1 text-sm">
-            {goals.length === 0 ? "ပန်းတိုင်ပမာဏအတွက် အိတ်တစ်ခု စတင်ပါ။" : `စုနေသော အိတ် ${goals.length} ခု`}
+            {goals.length === 0 ? "None yet" : `${goals.length} in progress`}
           </p>
         </Link>
       </section>

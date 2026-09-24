@@ -4,7 +4,7 @@ import { CATEGORIES, type Category } from "@/types/expense";
 import type { Frequency, RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
 
 const MISSING_TABLE =
-  "ဘေလ်နဲ့ စုငွေအတွက် supabase/migrations/004_recurring_and_goals.sql ကို SQL editor မှာ တစ်ကြိမ် run ပြီး ပြန်ဖွင့်ပါ။";
+  "Run supabase/migrations/004_recurring_and_goals.sql in the Supabase SQL editor, then reload.";
 
 function isCategory(value: string): value is Category {
   return (CATEGORIES as readonly string[]).includes(value);

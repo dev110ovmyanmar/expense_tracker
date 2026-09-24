@@ -204,7 +204,7 @@ function chargesFor(item: RecurringItem, dates: string[]): Expense[] {
     currency: DEFAULT_CURRENCY,
     category: item.category,
     date,
-    notes: item.frequency === "weekly" ? "အပတ်စဉ် ပုံသေဘေလ်" : "လစဉ် ပုံသေဘေလ်",
+    notes: item.frequency === "weekly" ? "Weekly recurring" : "Monthly recurring",
     source: "manual" as const,
     lineItems: [],
     createdAt: now,
@@ -256,13 +256,13 @@ export async function addRecurring(input: RecurringInput) {
   await writePlanning(async () => {
     await saveRecurring(item);
     snapshot = { ...snapshot, recurring: [...snapshot.recurring, item].sort((a, b) => a.nextDue.localeCompare(b.nextDue)) };
-  }, "ဘေလ် မသိမ်းနိုင်သေးပါ။");
+  }, "The bill could not be saved.");
   return item;
 }
 
 export async function updateRecurring(id: string, input: RecurringInput) {
   const current = snapshot.recurring.find((item) => item.id === id);
-  if (!current) throw new Error("ဒီဘေလ်က အချိန်ဇယားမှာ မရှိတော့ပါ။");
+  if (!current) throw new Error("That bill is no longer on the schedule.");
   const updated = { ...current, ...input, updatedAt: new Date().toISOString() };
   await writePlanning(async () => {
     await saveRecurring(updated);
@@ -272,14 +272,14 @@ export async function updateRecurring(id: string, input: RecurringInput) {
         .map((item) => (item.id === id ? updated : item))
         .sort((a, b) => a.nextDue.localeCompare(b.nextDue)),
     };
-  }, "ဘေလ် မပြင်နိုင်သေးပါ။");
+  }, "The bill could not be updated.");
 }
 
 export async function removeRecurring(id: string) {
   await writePlanning(async () => {
     await deleteRecurring(id);
     snapshot = { ...snapshot, recurring: snapshot.recurring.filter((item) => item.id !== id) };
-  }, "ဘေလ် မဖယ်နိုင်သေးပါ။");
+  }, "The bill could not be removed.");
 }
 
 export async function logRecurring(id: string) {
@@ -297,7 +297,7 @@ export async function logRecurring(id: string) {
       expenses: sortExpenses([...expenses, ...snapshot.expenses]),
       recurring: snapshot.recurring.map((entry) => (entry.id === id ? updated : entry)),
     };
-  }, "ဘေလ် မမှတ်နိုင်သေးပါ။");
+  }, "The bill could not be logged.");
 }
 
 export async function addGoal(input: SavingsGoalInput) {
@@ -306,25 +306,25 @@ export async function addGoal(input: SavingsGoalInput) {
   await writePlanning(async () => {
     await saveGoal(goal);
     snapshot = { ...snapshot, goals: [...snapshot.goals, goal] };
-  }, "ပန်းတိုင် မသိမ်းနိုင်သေးပါ။");
+  }, "The goal could not be saved.");
   return goal;
 }
 
 export async function updateGoal(id: string, input: SavingsGoalInput) {
   const current = snapshot.goals.find((goal) => goal.id === id);
-  if (!current) throw new Error("ဒီပန်းတိုင် မရှိတော့ပါ။");
+  if (!current) throw new Error("That goal is no longer here.");
   const updated = { ...current, ...input, updatedAt: new Date().toISOString() };
   await writePlanning(async () => {
     await saveGoal(updated);
     snapshot = { ...snapshot, goals: snapshot.goals.map((goal) => (goal.id === id ? updated : goal)) };
-  }, "ပန်းတိုင် မပြင်နိုင်သေးပါ။");
+  }, "The goal could not be updated.");
 }
 
 export async function removeGoal(id: string) {
   await writePlanning(async () => {
     await deleteGoal(id);
     snapshot = { ...snapshot, goals: snapshot.goals.filter((goal) => goal.id !== id) };
-  }, "ပန်းတိုင် မဖယ်နိုင်သေးပါ။");
+  }, "The goal could not be removed.");
 }
 
 export async function addToGoal(id: string, amount: number, monthly = false) {
@@ -341,6 +341,6 @@ export async function addToGoal(id: string, amount: number, monthly = false) {
   await writePlanning(async () => {
     await saveGoal(updated);
     snapshot = { ...snapshot, goals: snapshot.goals.map((entry) => (entry.id === id ? updated : entry)) };
-  }, "စုငွေ မထည့်နိုင်သေးပါ။");
+  }, "The savings could not be added.");
 }
 
