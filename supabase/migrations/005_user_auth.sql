@@ -33,41 +33,53 @@ create policy "budgets_own_insert" on public.budgets
 create policy "budgets_own_update" on public.budgets
   for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 
-drop policy if exists "recurring_public_select" on public.recurring_items;
-drop policy if exists "recurring_public_insert" on public.recurring_items;
-drop policy if exists "recurring_public_update" on public.recurring_items;
-drop policy if exists "recurring_public_delete" on public.recurring_items;
-drop policy if exists "recurring_own_select" on public.recurring_items;
-drop policy if exists "recurring_own_insert" on public.recurring_items;
-drop policy if exists "recurring_own_update" on public.recurring_items;
-drop policy if exists "recurring_own_delete" on public.recurring_items;
+do $$
+begin
+  if to_regclass('public.recurring_items') is not null then
+    execute 'drop policy if exists "recurring_public_select" on public.recurring_items';
+    execute 'drop policy if exists "recurring_public_insert" on public.recurring_items';
+    execute 'drop policy if exists "recurring_public_update" on public.recurring_items';
+    execute 'drop policy if exists "recurring_public_delete" on public.recurring_items';
+    execute 'drop policy if exists "recurring_own_select" on public.recurring_items';
+    execute 'drop policy if exists "recurring_own_insert" on public.recurring_items';
+    execute 'drop policy if exists "recurring_own_update" on public.recurring_items';
+    execute 'drop policy if exists "recurring_own_delete" on public.recurring_items';
+    execute 'create policy "recurring_own_select" on public.recurring_items for select to authenticated using (user_id = auth.uid())';
+    execute 'create policy "recurring_own_insert" on public.recurring_items for insert to authenticated with check (user_id = auth.uid())';
+    execute 'create policy "recurring_own_update" on public.recurring_items for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid())';
+    execute 'create policy "recurring_own_delete" on public.recurring_items for delete to authenticated using (user_id = auth.uid())';
+  end if;
 
-create policy "recurring_own_select" on public.recurring_items
-  for select to authenticated using (user_id = auth.uid());
-create policy "recurring_own_insert" on public.recurring_items
-  for insert to authenticated with check (user_id = auth.uid());
-create policy "recurring_own_update" on public.recurring_items
-  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy "recurring_own_delete" on public.recurring_items
-  for delete to authenticated using (user_id = auth.uid());
+  if to_regclass('public.savings_goals') is not null then
+    execute 'drop policy if exists "goals_public_select" on public.savings_goals';
+    execute 'drop policy if exists "goals_public_insert" on public.savings_goals';
+    execute 'drop policy if exists "goals_public_update" on public.savings_goals';
+    execute 'drop policy if exists "goals_public_delete" on public.savings_goals';
+    execute 'drop policy if exists "goals_own_select" on public.savings_goals';
+    execute 'drop policy if exists "goals_own_insert" on public.savings_goals';
+    execute 'drop policy if exists "goals_own_update" on public.savings_goals';
+    execute 'drop policy if exists "goals_own_delete" on public.savings_goals';
+    execute 'create policy "goals_own_select" on public.savings_goals for select to authenticated using (user_id = auth.uid())';
+    execute 'create policy "goals_own_insert" on public.savings_goals for insert to authenticated with check (user_id = auth.uid())';
+    execute 'create policy "goals_own_update" on public.savings_goals for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid())';
+    execute 'create policy "goals_own_delete" on public.savings_goals for delete to authenticated using (user_id = auth.uid())';
+  end if;
+end $$;
 
-drop policy if exists "goals_public_select" on public.savings_goals;
-drop policy if exists "goals_public_insert" on public.savings_goals;
-drop policy if exists "goals_public_update" on public.savings_goals;
-drop policy if exists "goals_public_delete" on public.savings_goals;
-drop policy if exists "goals_own_select" on public.savings_goals;
-drop policy if exists "goals_own_insert" on public.savings_goals;
-drop policy if exists "goals_own_update" on public.savings_goals;
-drop policy if exists "goals_own_delete" on public.savings_goals;
+create table if not exists public.receipt_items (
+  id uuid primary key default gen_random_uuid(),
+  expense_id uuid not null references public.expenses (id) on delete cascade,
+  shop_name text not null,
+  item_name text not null,
+  unit_price numeric(14, 2) not null check (unit_price >= 0),
+  date date not null
+);
 
-create policy "goals_own_select" on public.savings_goals
-  for select to authenticated using (user_id = auth.uid());
-create policy "goals_own_insert" on public.savings_goals
-  for insert to authenticated with check (user_id = auth.uid());
-create policy "goals_own_update" on public.savings_goals
-  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy "goals_own_delete" on public.savings_goals
-  for delete to authenticated using (user_id = auth.uid());
+create index if not exists receipt_items_shop_item_date_idx
+  on public.receipt_items (shop_name, item_name, date desc);
+
+alter table public.receipt_items enable row level security;
+grant select, insert, update, delete on public.receipt_items to authenticated;
 
 drop policy if exists "receipt_items_public_select" on public.receipt_items;
 drop policy if exists "receipt_items_public_insert" on public.receipt_items;
