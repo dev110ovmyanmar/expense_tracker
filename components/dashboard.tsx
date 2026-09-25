@@ -111,13 +111,13 @@ export function Dashboard() {
       />
 
       <section className="grid gap-2 sm:grid-cols-2">
-        <Link href="/plan#bills" className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-white backdrop-blur-xl backdrop-saturate-150 transition-all duration-300 ease-out hover:scale-[1.01] hover:bg-white/10">
+        <Link href="/plan#bills" className="rounded-2xl border border-emerald-500/20 bg-white/5 px-3 py-3 text-white backdrop-blur-xl backdrop-saturate-150 transition-all duration-300 ease-out hover:border-emerald-400/50 hover:bg-white/[0.04]">
           <p className="text-xs font-semibold tracking-[0.14em] text-white/60 uppercase">Fixed bills</p>
           <p className="mt-1 text-sm">
             {recurring.length === 0 ? "None scheduled" : `${recurring.length} scheduled`}
           </p>
         </Link>
-        <Link href="/plan#goals" className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-white backdrop-blur-xl backdrop-saturate-150 transition-all duration-300 ease-out hover:scale-[1.01] hover:bg-white/10">
+        <Link href="/plan#goals" className="rounded-2xl border border-emerald-500/20 bg-white/5 px-3 py-3 text-white backdrop-blur-xl backdrop-saturate-150 transition-all duration-300 ease-out hover:border-emerald-400/50 hover:bg-white/[0.04]">
           <p className="text-xs font-semibold tracking-[0.14em] text-white/60 uppercase">Savings goals</p>
           <p className="mt-1 text-sm">
             {goals.length === 0 ? "None yet" : `${goals.length} in progress`}

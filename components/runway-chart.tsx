@@ -150,7 +150,7 @@ function summary(forecast: RunwayForecast, low: boolean): string {
 
 function Figure({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
   return (
-    <div className="rounded-full border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-md transition-all duration-300 ease-out hover:bg-white/15">
+    <div className="rounded-full border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-md">
       <p className="text-[11px] font-medium tracking-[0.14em] text-white/60 uppercase">{label}</p>
       <p className={`mt-1 font-sans text-lg font-semibold tabular-nums ${warning ? "text-destructive" : "text-white"}`}>{value}</p>
     </div>
