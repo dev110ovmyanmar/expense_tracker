@@ -1,4 +1,5 @@
 import { isExpenseCategory, type CategoryLimits } from "@/lib/budget-status";
+import { insertDailyBill, fetchDailyBills, type DailyBill } from "@/lib/daily-bills";
 import { todayISO } from "@/lib/format";
 import {
   deleteRemoteExpense,
@@ -20,6 +21,7 @@ export interface LedgerSnapshot {
   categoryLimits: CategoryLimits;
   recurring: RecurringItem[];
   goals: SavingsGoal[];
+  dailyBills: DailyBill[];
   planningMessage: string | null;
   userEmail: string | null;
   userName: string | null;
@@ -37,6 +39,7 @@ const SERVER_SNAPSHOT: LedgerSnapshot = {
   categoryLimits: {},
   recurring: [],
   goals: [],
+  dailyBills: [],
   planningMessage: null,
   userEmail: null,
   userName: null,
@@ -92,11 +95,12 @@ async function load() {
     return;
   }
   try {
-    const [{ data: userData }, ledger, planning, settings] = await Promise.all([
+    const [{ data: userData }, ledger, planning, settings, dailyBills] = await Promise.all([
       getSupabase().auth.getUser(),
       fetchRemoteLedger(),
       fetchPlanning(),
       fetchSettings(),
+      fetchDailyBills(),
     ]);
     const logged = planning.message ? { expenses: [], recurring: planning.recurring } : await applyAutoLog(planning.recurring);
     publish({
@@ -105,6 +109,7 @@ async function load() {
       categoryLimits: ledger.categoryLimits,
       recurring: logged.recurring,
       goals: planning.goals,
+      dailyBills,
       planningMessage: planning.message,
       userEmail: userData.user?.email ?? null,
       userName: accountName(userData.user),
@@ -257,6 +262,55 @@ export async function setCategoryLimit(category: Category, amount: number) {
     publish({ ...snapshot, categoryLimits, saving: false, storageWarning: false, storageMessage: null });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The category limit could not be saved.";
+    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
+  }
+}
+
+export async function addDailyBill(input: { title: string; amount: number; category: Category; date: string }) {
+  const title = input.title.trim();
+  const amount = Math.round(input.amount * 100) / 100;
+  if (!title) throw new Error("Add a name for the bill.");
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Amount has to be a number above zero.");
+  requireReady();
+  const now = new Date().toISOString();
+  const expenseId = crypto.randomUUID();
+  const expense: Expense = {
+    id: expenseId,
+    type: "expense",
+    vendor: title,
+    amount,
+    currency: DEFAULT_CURRENCY,
+    category: input.category,
+    date: input.date,
+    notes: "Daily bill",
+    source: "manual",
+    lineItems: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  const bill: DailyBill = {
+    id: crypto.randomUUID(),
+    title,
+    amount,
+    category: input.category,
+    date: input.date,
+    expenseId,
+  };
+  publish({ ...snapshot, saving: true });
+  try {
+    await upsertExpenses([expense]);
+    await insertDailyBill(bill);
+    publish({
+      ...snapshot,
+      expenses: sortExpenses([expense, ...snapshot.expenses]),
+      dailyBills: [bill, ...snapshot.dailyBills],
+      saving: false,
+      storageWarning: false,
+      storageMessage: null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The bill could not be saved.";
     publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
     throw new Error(message);
   }

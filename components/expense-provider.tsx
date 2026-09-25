@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import {
   addExpense,
+  addDailyBill,
   addGoal,
   addRecurring,
   addToGoal,
@@ -23,6 +24,7 @@ import {
   updateGoal,
   updateRecurring,
 } from "@/lib/ledger-store";
+import type { DailyBill } from "@/lib/daily-bills";
 import type { CategoryLimits } from "@/lib/budget-status";
 import type { Category, Expense, ExpenseInput } from "@/types/expense";
 import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
@@ -33,6 +35,7 @@ interface ExpenseContextValue {
   categoryLimits: CategoryLimits;
   recurring: RecurringItem[];
   goals: SavingsGoal[];
+  dailyBills: DailyBill[];
   planningMessage: string | null;
   userEmail: string | null;
   userName: string | null;
@@ -43,6 +46,7 @@ interface ExpenseContextValue {
   storageWarning: boolean;
   storageMessage: string | null;
   addExpense: (input: ExpenseInput) => Promise<Expense>;
+  addDailyBill: (input: { title: string; amount: number; category: Category; date: string }) => Promise<void>;
   updateExpense: (id: string, input: ExpenseInput) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setBudget: (amount: number) => Promise<void>;
@@ -77,6 +81,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       categoryLimits: ledger.categoryLimits,
       recurring: ledger.recurring,
       goals: ledger.goals,
+      dailyBills: ledger.dailyBills,
       planningMessage: ledger.planningMessage,
       userEmail: ledger.userEmail,
       userName: ledger.userName,
@@ -87,6 +92,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       storageWarning: ledger.storageWarning,
       storageMessage: ledger.storageMessage,
       addExpense,
+      addDailyBill,
       updateExpense,
       deleteExpense,
       setBudget,

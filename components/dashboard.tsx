@@ -4,6 +4,7 @@ import { ArrowDownLeft, ArrowUpRight, PiggyBank, Scale, ScanLine } from "lucide-
 import Link from "next/link";
 import { BudgetCoach } from "@/components/budget-coach";
 import { BudgetLimits } from "@/components/budget-limits";
+import { DailyBillsCard } from "@/components/daily-bills";
 import { AddExpenseButton } from "@/components/ExpenseForm";
 import { PageHeader } from "@/components/page-header";
 import { useExpenses } from "@/components/expense-provider";
@@ -18,7 +19,7 @@ import { formatLongDate, formatMoney, formatMonth, greeting, roundMoney } from "
 import type { LucideIcon } from "lucide-react";
 
 export function Dashboard() {
-  const { expenses, budget, categoryLimits, hydrated, recurring, goals, setCategoryLimit } = useExpenses();
+  const { expenses, budget, categoryLimits, hydrated, recurring, goals, dailyBills, setCategoryLimit } = useExpenses();
 
   if (!hydrated) {
     return (
@@ -98,6 +99,8 @@ export function Dashboard() {
           level={budgetLevel(spent, budget)}
         />
       </section>
+
+      <DailyBillsCard bills={dailyBills} />
 
       <BudgetLimits
         budget={budget}
