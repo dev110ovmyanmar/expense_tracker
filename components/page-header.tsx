@@ -14,12 +14,12 @@ export function PageHeader({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
       <div className="max-w-2xl space-y-1 sm:space-y-2">
-        <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase sm:text-xs">
+        <p className="text-[11px] font-medium tracking-[0.14em] text-white/60 uppercase sm:text-xs">
           {eyebrow}
         </p>
-        <h1 className="font-heading text-2xl leading-tight tracking-tight sm:text-4xl">{title}</h1>
+        <h1 className="font-sans text-2xl leading-tight font-semibold tracking-tight text-white sm:text-4xl">{title}</h1>
         {description ? (
-          <p className="text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6">{description}</p>
+          <p className="text-sm leading-5 text-white/60 sm:text-base sm:leading-6">{description}</p>
         ) : null}
       </div>
       {actions ? (

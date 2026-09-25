@@ -34,7 +34,7 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
         </div>
         {forecast.ready ? (
           <>
-            <div className="h-64 min-w-0 overflow-hidden sm:h-72">
+            <div className="h-64 min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md sm:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={forecast.points} margin={{ top: 28, right: 20, left: 0, bottom: 0 }}>
                   <defs>
@@ -150,9 +150,9 @@ function summary(forecast: RunwayForecast, low: boolean): string {
 
 function Figure({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
   return (
-    <div className="rounded-xl bg-muted/60 px-3 py-3">
-      <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">{label}</p>
-      <p className={`mt-1 font-mono text-lg tabular-nums ${warning ? "text-destructive" : ""}`}>{value}</p>
+    <div className="rounded-full border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-md transition-all duration-300 ease-out hover:bg-white/15">
+      <p className="text-[11px] font-medium tracking-[0.14em] text-white/60 uppercase">{label}</p>
+      <p className={`mt-1 font-sans text-lg font-semibold tabular-nums ${warning ? "text-destructive" : "text-white"}`}>{value}</p>
     </div>
   );
 }
