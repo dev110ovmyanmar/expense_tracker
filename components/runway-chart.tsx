@@ -3,7 +3,7 @@
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney } from "@/lib/format";
-import { forecastRunway, type RunwayPoint } from "@/lib/runway";
+import { forecastRunway, type RunwayForecast, type RunwayPoint } from "@/lib/runway";
 import type { Expense } from "@/types/expense";
 
 export function RunwayChart({ expenses }: { expenses: Expense[] }) {
@@ -17,7 +17,9 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
       <CardHeader>
         <CardTitle>Financial runway</CardTitle>
         <CardDescription>
-          Next 30 days from your salary and the recent daily spend.
+          {forecast.payIncluded && forecast.payLabel
+            ? `Current balance minus daily spend, plus unpaid salary on ${forecast.payLabel}.`
+            : "Current balance minus daily spend for the next 30 days. Income already logged is not added again."}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -88,11 +90,7 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
               </ResponsiveContainer>
             </div>
             <p className={`text-sm ${low ? "text-destructive" : "text-muted-foreground"}`}>
-              {low && forecast.lowDay !== null
-                ? forecast.lowDay === 0
-                  ? `Already under ${formatMoney(forecast.warningLevel)}, about a week of spending.`
-                  : `Dips under ${formatMoney(forecast.warningLevel)} on ${forecast.points[forecast.lowDay]?.label}, about a week of spending.`
-                : "Stays above a week of spending for the next 30 days."}
+              {summary(forecast, low)}
             </p>
           </>
         ) : (
@@ -134,6 +132,20 @@ function RunwayDot({
       </text>
     </g>
   );
+}
+
+function summary(forecast: RunwayForecast, low: boolean): string {
+  const ending = `${forecast.endingBalance < 0 ? "−" : ""}${formatMoney(Math.abs(forecast.endingBalance))}`;
+  const salary = forecast.payIncluded && forecast.payLabel
+    ? ` Unpaid salary on ${forecast.payLabel} is added once.`
+    : " Logged income stays in the current balance.";
+  if (low && forecast.lowDay !== null) {
+    const when = forecast.lowDay === 0
+      ? "Already under a week of spending."
+      : `Dips under a week of spending on ${forecast.points[forecast.lowDay]?.label}.`;
+    return `Balance in 30 days is ${ending}.${salary} ${when}`;
+  }
+  return `Balance in 30 days is ${ending}.${salary} That stays above a week of spending.`;
 }
 
 function Figure({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {

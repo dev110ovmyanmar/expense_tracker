@@ -20,6 +20,8 @@ export interface RunwayForecast {
   endingBalance: number;
   warningLevel: number;
   lowDay: number | null;
+  payIncluded: boolean;
+  payLabel: string | null;
   points: RunwayPoint[];
   ready: boolean;
 }
@@ -69,13 +71,17 @@ export function forecastRunway(expenses: Expense[], now = new Date()): RunwayFor
     0,
   );
   const startingBalance = roundMoney(net);
-  const dailySalary = monthlySalary / 30;
   const warningLevel = dailyExpense > 0 ? roundMoney(dailyExpense * WARNING_DAYS) : 0;
+  const salaryDates = new Set(
+    expenses.filter((expense) => expense.type === "income" && expense.category === "Salary").map((expense) => expense.date),
+  );
+  const pay = upcomingSalary(today, salaryDates, monthlySalary);
 
   let lowDay: number | null = null;
   const points: RunwayPoint[] = [];
   for (let day = 0; day <= HORIZON; day += 1) {
-    const balance = roundMoney(startingBalance + day * (dailySalary - dailyExpense));
+    const salary = pay && day >= pay.offset ? monthlySalary : 0;
+    const balance = roundMoney(startingBalance - day * dailyExpense + salary);
     const date = new Date(today);
     date.setDate(date.getDate() + day);
     const low = balance < warningLevel;
@@ -96,7 +102,45 @@ export function forecastRunway(expenses: Expense[], now = new Date()): RunwayFor
     endingBalance: points[HORIZON]?.balance ?? startingBalance,
     warningLevel,
     lowDay,
+    payIncluded: Boolean(pay),
+    payLabel: pay?.label ?? null,
     points,
     ready: spending.length > 0 || salaryByMonth.size > 0,
   };
+}
+
+function upcomingSalary(today: Date, salaryDates: Set<string>, monthlySalary: number): { offset: number; label: string } | null {
+  if (monthlySalary <= 0 || salaryDates.size === 0) return null;
+  const latest = [...salaryDates].sort().at(-1);
+  if (!latest) return null;
+  const payDay = Number(latest.slice(8, 10));
+  let cursor = payOnOrAfter(today, payDay);
+  if (salaryDates.has(isoDate(cursor))) cursor = payOnOrAfter(addMonths(cursor, 1), payDay);
+  const offset = Math.round((dayStamp(cursor).getTime() - today.getTime()) / 86_400_000);
+  if (offset < 0 || offset > HORIZON || salaryDates.has(isoDate(cursor))) return null;
+  return {
+    offset,
+    label: cursor.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+  };
+}
+
+function payOnOrAfter(today: Date, payDay: number): Date {
+  const thisMonth = clampPayDay(today.getFullYear(), today.getMonth(), payDay);
+  if (thisMonth >= today) return thisMonth;
+  return clampPayDay(today.getFullYear(), today.getMonth() + 1, payDay);
+}
+
+function clampPayDay(year: number, month: number, payDay: number): Date {
+  const last = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(payDay, last));
+}
+
+function addMonths(date: Date, count: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + count, 1);
+}
+
+function isoDate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
 }
