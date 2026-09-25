@@ -16,6 +16,7 @@ export interface RunwayPoint {
 
 export interface RunwayForecast {
   dailyExpense: number;
+  totalIncome: number;
   monthlySalary: number;
   startingBalance: number;
   endingBalance: number;
@@ -62,23 +63,19 @@ export function forecastRunway(expenses: Expense[], now = new Date()): RunwayFor
     const key = expense.date.slice(0, 7);
     incomeByMonth.set(key, (incomeByMonth.get(key) ?? 0) + expense.amount);
   }
-  const monthlySalary =
-    incomeByMonth.size > 0
-      ? roundMoney([...incomeByMonth.values()].reduce((sum, amount) => sum + amount, 0) / incomeByMonth.size)
-      : 0;
-
-  const net = expenses.reduce(
-    (sum, expense) => sum + (expense.type === "income" ? expense.amount : -expense.amount),
-    0,
-  );
-  const startingBalance = roundMoney(net);
+  const monthlyTotals = [...incomeByMonth.values()];
+  const totalIncome = roundMoney(monthlyTotals.reduce((sum, amount) => sum + amount, 0));
+  const latestMonthKey = [...incomeByMonth.keys()].sort().at(-1);
+  const latestMonthIncome = latestMonthKey ? roundMoney(incomeByMonth.get(latestMonthKey) ?? 0) : 0;
+  const totalSpent = roundMoney(spending.reduce((sum, expense) => sum + expense.amount, 0));
+  const startingBalance = roundMoney(totalIncome - totalSpent);
   const warningLevel = dailyExpense > 0 ? roundMoney(dailyExpense * WARNING_DAYS) : 0;
-  const pays = monthEndIncome(today, new Set(incomeByMonth.keys()), monthlySalary);
+  const pays = monthEndIncome(today, new Set(incomeByMonth.keys()), latestMonthIncome);
 
   let lowDay: number | null = null;
   const points: RunwayPoint[] = [];
   for (let day = 0; day <= HORIZON; day += 1) {
-    const salary = pays.filter((pay) => pay.offset <= day).length * monthlySalary;
+    const salary = pays.filter((pay) => pay.offset <= day).length * latestMonthIncome;
     const balance = roundMoney(startingBalance - day * dailyExpense + salary);
     const date = new Date(today);
     date.setDate(date.getDate() + day);
@@ -96,7 +93,8 @@ export function forecastRunway(expenses: Expense[], now = new Date()): RunwayFor
 
   return {
     dailyExpense,
-    monthlySalary,
+    totalIncome,
+    monthlySalary: latestMonthIncome,
     startingBalance,
     endingBalance: points[HORIZON]?.balance ?? startingBalance,
     warningLevel,

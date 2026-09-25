@@ -18,14 +18,14 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
         <CardTitle>Financial runway</CardTitle>
         <CardDescription>
           {forecast.payIncluded && forecast.payLabel
-            ? `Current balance minus daily spend, plus month-end income on ${forecast.payLabel}.`
-            : "Current balance minus daily spend for the next 30 days. Income already logged this month is not added again."}
+            ? `Total income minus spending, plus unpaid month-end income on ${forecast.payLabel}. The monthly budget is not included.`
+            : "Total income minus spending over the next 30 days. The monthly budget is not included."}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="grid min-w-0 gap-3 sm:grid-cols-3">
+          <Figure label="Total income" value={formatMoney(forecast.totalIncome)} />
           <Figure label="Daily spend" value={formatMoney(forecast.dailyExpense)} />
-          <Figure label="Month-end income" value={formatMoney(forecast.monthlySalary)} />
           <Figure
             label="Balance in 30 days"
             value={`${forecast.endingBalance < 0 ? "−" : ""}${formatMoney(Math.abs(forecast.endingBalance))}`}
@@ -137,8 +137,8 @@ function RunwayDot({
 function summary(forecast: RunwayForecast, low: boolean): string {
   const ending = `${forecast.endingBalance < 0 ? "−" : ""}${formatMoney(Math.abs(forecast.endingBalance))}`;
   const salary = forecast.payIncluded && forecast.payLabel
-    ? ` Month-end income on ${forecast.payLabel} is added once.`
-    : " Income already logged stays in the current balance.";
+    ? ` Unpaid month-end income on ${forecast.payLabel} is added once.`
+    : " The monthly budget is not part of this balance.";
   if (low && forecast.lowDay !== null) {
     const when = forecast.lowDay === 0
       ? "Already under a week of spending."
