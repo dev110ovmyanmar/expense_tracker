@@ -78,7 +78,7 @@ export function FixedBills() {
                     <p className="shrink-0 font-mono text-sm tabular-nums">{formatMoney(item.amount)}</p>
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    {item.frequency === "weekly" ? "Weekly" : "Monthly"}
+                    {item.frequency === "daily" ? "Daily" : item.frequency === "weekly" ? "Weekly" : "Monthly"}
                     {" · "}
                     {item.category}
                     {" · "}
@@ -207,8 +207,26 @@ function BillDialog({
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-2">
-            <Choice label="Frequency" value={frequency} options={[["monthly", "Monthly"], ["weekly", "Weekly"]]} onChange={(value) => setFrequency(value as Frequency)} />
-            <Choice label="When due" value={autoLog ? "auto" : "ask"} options={[["ask", "Ask me"], ["auto", "Log it"]]} onChange={(value) => setAutoLog(value === "auto")} />
+            <Choice label="Frequency" value={frequency} options={[["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"]]} onChange={(value) => setFrequency(value as Frequency)} />
+            {frequency === "daily" ? (
+              <div className="grid gap-1.5">
+                <span className="text-xs text-muted-foreground">Each day</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={autoLog}
+                  onClick={() => setAutoLog((value) => !value)}
+                  className="flex h-11 items-center justify-between rounded-md bg-muted px-3 text-sm"
+                >
+                  Auto-add daily
+                  <span className={`relative h-5 w-9 rounded-full ${autoLog ? "bg-primary" : "bg-foreground/20"}`}>
+                    <span className={`absolute top-0.5 size-4 rounded-full bg-background ${autoLog ? "left-4" : "left-0.5"}`} />
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <Choice label="When due" value={autoLog ? "auto" : "ask"} options={[["ask", "Ask me"], ["auto", "Log it"]]} onChange={(value) => setAutoLog(value === "auto")} />
+            )}
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />

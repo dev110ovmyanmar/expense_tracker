@@ -46,7 +46,7 @@ interface ExpenseContextValue {
   storageWarning: boolean;
   storageMessage: string | null;
   addExpense: (input: ExpenseInput) => Promise<Expense>;
-  addDailyBill: (input: { title: string; amount: number; category: Category; date: string }) => Promise<void>;
+  addDailyBill: (input: { title: string; amount: number; category: Category; date: string; autoDaily?: boolean }) => Promise<void>;
   updateExpense: (id: string, input: ExpenseInput) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setBudget: (amount: number) => Promise<void>;

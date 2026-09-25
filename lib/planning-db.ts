@@ -46,7 +46,7 @@ interface GoalRow {
 
 function rowToRecurring(row: RecurringRow): RecurringItem | null {
   if (!isCategory(row.category)) return null;
-  if (row.frequency !== "weekly" && row.frequency !== "monthly") return null;
+  if (row.frequency !== "daily" && row.frequency !== "weekly" && row.frequency !== "monthly") return null;
   const amount = money(row.amount);
   if (!row.name || amount <= 0) return null;
   return {

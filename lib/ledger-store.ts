@@ -8,7 +8,7 @@ import {
   upsertExpenses,
 } from "@/lib/ledger-db";
 import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInput, recurringFromInput, saveGoal, saveRecurring, saveSettings } from "@/lib/planning-db";
-import { scheduleCatchUp } from "@/lib/recurring";
+import { advanceDate, scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { Category, Expense, ExpenseInput } from "@/types/expense";
@@ -267,7 +267,7 @@ export async function setCategoryLimit(category: Category, amount: number) {
   }
 }
 
-export async function addDailyBill(input: { title: string; amount: number; category: Category; date: string }) {
+export async function addDailyBill(input: { title: string; amount: number; category: Category; date: string; autoDaily?: boolean }) {
   const title = input.title.trim();
   const amount = Math.round(input.amount * 100) / 100;
   if (!title) throw new Error("Add a name for the bill.");
@@ -301,10 +301,26 @@ export async function addDailyBill(input: { title: string; amount: number; categ
   try {
     await upsertExpenses([expense]);
     await insertDailyBill(bill);
+    const recurring = input.autoDaily
+      ? recurringFromInput(crypto.randomUUID(), {
+          name: title,
+          amount,
+          category: input.category,
+          type: "expense",
+          frequency: "daily",
+          nextDue: advanceDate(input.date, "daily"),
+          autoLog: true,
+          active: true,
+        }, now, now)
+      : null;
+    if (recurring) await saveRecurring(recurring);
     publish({
       ...snapshot,
       expenses: sortExpenses([expense, ...snapshot.expenses]),
       dailyBills: [bill, ...snapshot.dailyBills],
+      recurring: recurring
+        ? [...snapshot.recurring, recurring].sort((a, b) => a.nextDue.localeCompare(b.nextDue))
+        : snapshot.recurring,
       saving: false,
       storageWarning: false,
       storageMessage: null,
@@ -326,7 +342,7 @@ function chargesFor(item: RecurringItem, dates: string[]): Expense[] {
     currency: DEFAULT_CURRENCY,
     category: item.category,
     date,
-    notes: item.frequency === "weekly" ? "Weekly recurring" : "Monthly recurring",
+    notes: item.frequency === "daily" ? "Daily recurring" : item.frequency === "weekly" ? "Weekly recurring" : "Monthly recurring",
     source: "manual" as const,
     lineItems: [],
     createdAt: now,

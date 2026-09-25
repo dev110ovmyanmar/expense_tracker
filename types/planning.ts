@@ -1,6 +1,6 @@
 import type { Category, EntryType } from "@/types/expense";
 
-export type Frequency = "weekly" | "monthly";
+export type Frequency = "daily" | "weekly" | "monthly";
 
 export interface RecurringItem {
   id: string;
