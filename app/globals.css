@@ -232,9 +232,8 @@
   body {
     @apply bg-background font-sans text-foreground;
     background-image:
-      radial-gradient(ellipse 70% 45% at 8% -8%, color-mix(in oklch, var(--primary) 28%, transparent), transparent),
-      radial-gradient(ellipse 55% 40% at 100% 0%, color-mix(in oklch, white 12%, transparent), transparent),
-      radial-gradient(ellipse 40% 30% at 70% 100%, color-mix(in oklch, var(--primary) 16%, transparent), transparent);
+      radial-gradient(ellipse 80% 50% at 0% -10%, color-mix(in oklch, var(--primary) 18%, transparent), transparent),
+      radial-gradient(ellipse 50% 40% at 100% 0%, color-mix(in oklch, var(--primary) 10%, transparent), transparent);
   }
   html {
     @apply font-sans;

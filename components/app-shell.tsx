@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-svh">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-white/10 bg-slate-900/40 text-white shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.06)] backdrop-blur-xl backdrop-saturate-150 md:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
         <div className="px-5 pt-6">
           <Brand />
         </div>
@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="md:pl-64">
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-slate-900/40 px-4 py-3 backdrop-blur-xl backdrop-saturate-150 md:hidden">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background px-4 py-3 md:hidden">
           <Brand />
           <div className="flex items-center gap-3">
             <Link href="/profile" className="max-w-28 truncate text-sm font-medium">
@@ -91,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {children}
           </div>
         </main>
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-slate-900/40 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150 md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
           <ul className="grid grid-cols-4 px-1">
             {NAV.map((item) => {
               const active = pathname === item.href;
@@ -102,14 +102,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium transition-all duration-300 ease-out",
-                      active ? "text-white" : "text-white/60",
+                      "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium",
+                      active ? "text-primary" : "text-muted-foreground",
                     )}
                   >
                     <span
                       className={cn(
                         "grid size-8 place-items-center rounded-full",
-                        active ? "border border-white/10 bg-white/10 backdrop-blur-md" : "",
+                        active ? "bg-primary/10 text-primary" : "",
                       )}
                     >
                       <Icon className="size-5" />
@@ -133,8 +133,8 @@ function Brand() {
         A
       </span>
       <span>
-        <span className="block font-sans text-lg leading-none font-semibold tracking-tight">Aura</span>
-        <span className="text-[11px] text-white/60">Personal ledger</span>
+        <span className="block font-heading text-lg leading-none">Aura</span>
+        <span className="text-[11px] text-muted-foreground">Personal ledger</span>
       </span>
     </Link>
   );
@@ -155,10 +155,10 @@ function NavLink({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-2 rounded-full px-3 py-2 text-sm transition-all duration-300 ease-out",
+        "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
         active
-          ? "border border-white/10 bg-white/10 font-semibold text-white backdrop-blur-md"
-          : "text-white/60 hover:scale-[1.02] hover:bg-white/10 hover:text-white",
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
       )}
     >
       <Icon className="size-4" />
@@ -193,7 +193,7 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
     <div className="grid gap-3">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium tracking-[0.14em] text-white/60 uppercase">
+          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
             {formatMonth()}
           </p>
           <p className="mt-1 font-mono text-sm tabular-nums">
@@ -235,7 +235,7 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
   if (!compact) return body;
 
   return (
-    <details className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-xl">
+    <details className="rounded-xl bg-card px-3 py-2 ring-1 ring-foreground/10">
       <summary className="cursor-pointer list-none text-sm font-medium">
         Budget · {budget > 0 && remaining < 0 ? `${formatMoney(Math.abs(remaining))} over` : `${formatMoney(Math.max(remaining, 0))} left`}
       </summary>

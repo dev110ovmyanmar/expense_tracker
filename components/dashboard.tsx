@@ -111,14 +111,14 @@ export function Dashboard() {
       />
 
       <section className="grid gap-2 sm:grid-cols-2">
-        <Link href="/plan#bills" className="rounded-2xl border border-emerald-500/20 bg-white/5 px-3 py-3 text-white backdrop-blur-xl backdrop-saturate-150 transition-all duration-300 ease-out hover:border-emerald-400/50 hover:bg-white/[0.04]">
-          <p className="text-xs font-semibold tracking-[0.14em] text-white/60 uppercase">Fixed bills</p>
+        <Link href="/plan#bills" className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
+          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Fixed bills</p>
           <p className="mt-1 text-sm">
             {recurring.length === 0 ? "None scheduled" : `${recurring.length} scheduled`}
           </p>
         </Link>
-        <Link href="/plan#goals" className="rounded-2xl border border-emerald-500/20 bg-white/5 px-3 py-3 text-white backdrop-blur-xl backdrop-saturate-150 transition-all duration-300 ease-out hover:border-emerald-400/50 hover:bg-white/[0.04]">
-          <p className="text-xs font-semibold tracking-[0.14em] text-white/60 uppercase">Savings goals</p>
+        <Link href="/plan#goals" className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
+          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Savings goals</p>
           <p className="mt-1 text-sm">
             {goals.length === 0 ? "None yet" : `${goals.length} in progress`}
           </p>
@@ -196,10 +196,10 @@ function StatCard({
   href?: string;
 }) {
   const body = (
-    <Card className="h-full">
+    <Card className={href ? "h-full transition-colors hover:bg-muted/50" : "h-full"}>
       <CardContent className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium tracking-[0.14em] text-white/60 uppercase">
+          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
             {label}
           </p>
           <span
@@ -221,7 +221,7 @@ function StatCard({
         >
           {value}
         </p>
-        <p className="text-xs text-white/60">{hint}</p>
+        <p className="text-xs text-muted-foreground">{hint}</p>
         {typeof progress === "number" ? (
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
