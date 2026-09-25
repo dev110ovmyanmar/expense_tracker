@@ -30,3 +30,4 @@ Photos are sent to a vision model (GPT-4o when `OPENAI_API_KEY` is set, otherwis
 - `npm run dev` — development server
 - `npm run build` — production build
 - `npm run lint` — ESLint
+# expense_tracker
