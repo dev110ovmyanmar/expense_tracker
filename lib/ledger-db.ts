@@ -157,13 +157,26 @@ export async function fetchRemoteLedger(supabase = getSupabase()): Promise<Remot
   };
 }
 
+function networkFailure(error: unknown): boolean {
+  return error instanceof TypeError || (error instanceof Error && /load failed|failed to fetch|network/i.test(error.message));
+}
+
 export async function upsertExpenses(expenses: Expense[]) {
   if (expenses.length === 0) return;
   const supabase = getSupabase();
-  const userId = ledgerOwnerId();
-  const { error } = await supabase.from("expenses").upsert(expenses.map((expense) => expenseToRow(expense, userId)));
-  if (error) {
-    throw new Error(friendlyError(error.message));
+  const rows = expenses.map((expense) => expenseToRow(expense, ledgerOwnerId()));
+  try {
+    const { error } = await supabase.from("expenses").upsert(rows);
+    if (error) throw new Error(friendlyError(error.message));
+  } catch (error) {
+    if (!networkFailure(error)) throw error instanceof Error ? error : new Error("The expense could not be saved.");
+    const response = await fetch("/api/ledger", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rows }),
+    });
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    if (!response.ok) throw new Error(friendlyError(body?.error || "The ledger could not reach Supabase. Check the connection and try again."));
   }
   for (const expense of expenses) {
     if (expense.source === "ocr") await saveReceiptItems(expense);

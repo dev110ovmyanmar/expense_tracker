@@ -26,11 +26,18 @@ export function getSupabase(): SupabaseClient {
     throw new Error("Open the ledger in the browser.");
   }
   if (!client) {
+    const memory = {
+      getItem: () => null,
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    };
     client = createClient(url, key, {
+      accessToken: async () => key,
       auth: {
         persistSession: false,
         autoRefreshToken: false,
         detectSessionInUrl: false,
+        storage: memory,
       },
     });
   }
