@@ -96,6 +96,7 @@ async function load(user: { id: string; email?: string | null; user_metadata?: R
     return;
   }
   try {
+    setSignedInUser(user.id);
     await ensureProfile(user);
     const [ledger, planning, settings, dailyBills] = await Promise.all([
       fetchRemoteLedger(),
@@ -180,6 +181,10 @@ function start() {
       }
       if (event === "SIGNED_OUT") {
         authLog("signed out");
+        if (hasSignedInUser()) {
+          authLog("ignored sign-out while a user is signed in", {});
+          return;
+        }
         setSignedInUser(null);
         signedOut();
         return;
@@ -568,6 +573,7 @@ export async function updateDisplayName(name: string) {
 
 export async function signOut() {
   if (!isSupabaseConfigured()) return;
+  setSignedInUser(null);
   await getSupabase().auth.signOut();
 }
 

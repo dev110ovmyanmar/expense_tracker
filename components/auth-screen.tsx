@@ -134,15 +134,6 @@ export function AuthScreen() {
                   setNotice("Confirm the email from Supabase, then sign in. You stay signed out until that link is opened.");
                   return;
                 }
-                const { error: sessionError } = await auth.setSession({
-                  access_token: data.session.access_token,
-                  refresh_token: data.session.refresh_token,
-                });
-                if (sessionError) {
-                  console.error("[aura-auth] session persist failed", { userId, message: sessionError.message });
-                  setNotice(sessionError.message);
-                  return;
-                }
                 setSignedInUser(userId);
                 const stored = window.localStorage.getItem("aura-auth");
                 authLog("session stored", { userId, stored: Boolean(stored) });
