@@ -101,6 +101,12 @@ export function AuthScreen() {
                 });
             void action.then(({ error, data }) => {
               setBusy(false);
+              const alreadyRegistered = /already registered|already been registered|already exists/i.test(error?.message ?? "");
+              const hiddenDuplicate = mode === "sign-up" && !error && !data.session && Array.isArray(data.user?.identities) && data.user.identities.length === 0;
+              if (alreadyRegistered || hiddenDuplicate) {
+                setNotice("This email already has an account. Deleting ledger rows does not remove the login. Sign in, or delete that user in Supabase under Authentication, then Users.");
+                return;
+              }
               if (error) {
                 setNotice(error.message);
                 return;
@@ -139,6 +145,11 @@ export function AuthScreen() {
             </button>
           ) : null}
           {notice ? <p className="text-sm text-destructive">{notice}</p> : null}
+          {notice.includes("already has an account") ? (
+            <button type="button" className="justify-self-start text-sm text-muted-foreground" onClick={() => { setMode("sign-in"); setNotice(""); }}>
+              Sign in instead
+            </button>
+          ) : null}
           <Button type="submit" className="min-h-11" disabled={busy}>
             {busy ? "Please wait…" : mode === "sign-in" ? "Sign in" : "Create account"}
           </Button>
