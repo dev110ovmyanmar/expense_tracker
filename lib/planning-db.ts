@@ -177,7 +177,12 @@ export interface UserSettings {
 
 export async function fetchSettings(): Promise<UserSettings> {
   const supabase = getSupabase();
-  const userId = await currentUserId();
+  let userId: string;
+  try {
+    userId = await currentUserId();
+  } catch {
+    return { dailyReminder: false, lastReminded: null };
+  }
   const { data, error } = await supabase.from("user_settings").select("daily_reminder, last_reminded").eq("user_id", userId).maybeSingle();
   if (error) {
     if (/user_settings|schema cache|does not exist/i.test(error.message)) return { dailyReminder: false, lastReminded: null };

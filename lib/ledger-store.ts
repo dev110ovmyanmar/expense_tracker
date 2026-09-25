@@ -124,6 +124,19 @@ async function load(user: { id: string; email?: string | null; user_metadata?: R
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The ledger could not be loaded.";
+    if (/sign in to open your ledger/i.test(message)) {
+      authLog("ledger opened without a second session check", { userId: user.id });
+      publish({
+        ...snapshot,
+        ready: true,
+        saving: false,
+        storageWarning: false,
+        storageMessage: null,
+        userEmail: user.email ?? null,
+        userName: accountName(user),
+      });
+      return;
+    }
     authLog("ledger load failed, session kept", { message });
     publish({
       ...snapshot,
