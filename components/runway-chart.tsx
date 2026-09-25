@@ -3,7 +3,7 @@
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney } from "@/lib/format";
-import { forecastRunway, type RunwayForecast, type RunwayPoint } from "@/lib/runway";
+import { forecastRunway, type RunwayDatum, type RunwayForecast } from "@/lib/runway";
 import type { Expense } from "@/types/expense";
 
 export function RunwayChart({ expenses }: { expenses: Expense[] }) {
@@ -79,7 +79,7 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
                   ) : null}
                   <Area
                     type="monotone"
-                    dataKey="balance"
+                    dataKey="projectedBalance"
                     stroke={stroke}
                     strokeWidth={2.5}
                     fill="url(#runway-fill)"
@@ -116,7 +116,7 @@ function RunwayDot({
 }: {
   cx?: number;
   cy?: number;
-  payload?: RunwayPoint;
+  payload?: RunwayDatum;
   stroke: string;
 }) {
   if (cx == null || cy == null || !payload) return null;
@@ -162,7 +162,7 @@ function RunwayTooltip({
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: RunwayPoint }>;
+  payload?: Array<{ payload?: RunwayDatum }>;
 }) {
   const point = payload?.[0]?.payload;
   if (!active || !point) return null;
@@ -172,7 +172,7 @@ function RunwayTooltip({
       <p className="text-xs text-muted-foreground">{mark}</p>
       <p className="font-medium">{point.when}</p>
       <p className="mt-1 text-xs text-muted-foreground">Projected balance</p>
-      <p className={`font-mono text-base ${point.low ? "text-destructive" : ""}`}>{formatMoney(point.balance)}</p>
+      <p className={`font-mono text-base ${point.low ? "text-destructive" : ""}`}>{formatMoney(point.projectedBalance)}</p>
     </div>
   );
 }
