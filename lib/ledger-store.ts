@@ -181,10 +181,6 @@ function start() {
       }
       if (event === "SIGNED_OUT") {
         authLog("signed out");
-        if (hasSignedInUser()) {
-          authLog("ignored sign-out while a user is signed in", {});
-          return;
-        }
         setSignedInUser(null);
         signedOut();
         return;

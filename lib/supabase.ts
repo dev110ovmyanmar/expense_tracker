@@ -117,14 +117,20 @@ export async function establishRecoverySession(): Promise<boolean> {
 }
 
 export async function currentUserId(): Promise<string> {
-  if (signedInUserId) return signedInUserId;
-  const { data } = await getSupabase().auth.getSession();
-  const id = data.session?.user?.id;
-  if (id) {
-    signedInUserId = id;
-    return id;
+  const supabase = getSupabase();
+  const first = await supabase.auth.getSession();
+  if (first.error) authLog("session read failed", { message: first.error.message });
+  let session = first.data.session;
+  const expiresAt = session?.expires_at ?? 0;
+  if (!session?.user || expiresAt * 1000 < Date.now() + 15_000) {
+    const refreshed = await supabase.auth.refreshSession();
+    if (refreshed.error) authLog("session refresh failed", { message: refreshed.error.message });
+    session = refreshed.data.session ?? session;
   }
-  throw new Error("Sign in to open your ledger.");
+  const id = session?.user?.id ?? null;
+  signedInUserId = id;
+  if (!id) throw new Error("Sign in to open your ledger.");
+  return id;
 }
 
 export function getSupabase(): SupabaseClient {
