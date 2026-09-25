@@ -1,19 +1,25 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let client: SupabaseClient | null = null;
+let signedInUserId: string | null = null;
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
+export function setSignedInUser(userId: string | null) {
+  signedInUserId = userId;
+}
+
 export async function currentUserId(): Promise<string> {
-  const supabase = getSupabase();
-  const { data: sessionData } = await supabase.auth.getSession();
-  const sessionUser = sessionData.session?.user;
-  if (sessionUser?.id) return sessionUser.id;
-  const { data, error } = await supabase.auth.getUser();
-  if (data.user?.id) return data.user.id;
-  throw new Error(error?.message || "Sign in to open your ledger.");
+  if (signedInUserId) return signedInUserId;
+  const { data } = await getSupabase().auth.getSession();
+  const id = data.session?.user?.id;
+  if (id) {
+    signedInUserId = id;
+    return id;
+  }
+  throw new Error("Sign in to open your ledger.");
 }
 
 export function getSupabase(): SupabaseClient {

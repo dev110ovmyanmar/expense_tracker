@@ -10,7 +10,7 @@ import {
 import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInput, recurringFromInput, saveGoal, saveRecurring, saveSettings } from "@/lib/planning-db";
 import { advanceDate, scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
-import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabase, isSupabaseConfigured, setSignedInUser } from "@/lib/supabase";
 import type { Category, Expense, ExpenseInput } from "@/types/expense";
 import { DEFAULT_CURRENCY } from "@/types/expense";
 import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
@@ -89,16 +89,13 @@ function fail(message: string) {
   publish({ ...snapshot, ready: true, saving: false, storageWarning: true, storageMessage: message });
 }
 
-async function load() {
+async function load(user: { email?: string | null; user_metadata?: Record<string, unknown> }) {
   if (!isSupabaseConfigured()) {
     fail(MISSING);
     return;
   }
   try {
-    const { data: sessionData } = await getSupabase().auth.getSession();
-    const sessionUser = sessionData.session?.user ?? null;
-    const [{ data: userData }, ledger, planning, settings, dailyBills] = await Promise.all([
-      sessionUser ? Promise.resolve({ data: { user: sessionUser } }) : getSupabase().auth.getUser(),
+    const [ledger, planning, settings, dailyBills] = await Promise.all([
       fetchRemoteLedger(),
       fetchPlanning(),
       fetchSettings(),
@@ -113,8 +110,8 @@ async function load() {
       goals: planning.goals,
       dailyBills,
       planningMessage: planning.message,
-      userEmail: userData.user?.email ?? null,
-      userName: accountName(userData.user),
+      userEmail: user.email ?? null,
+      userName: accountName(user),
       dailyReminder: settings.dailyReminder,
       lastReminded: settings.lastReminded,
       ready: true,
@@ -123,7 +120,15 @@ async function load() {
       storageMessage: null,
     });
   } catch (error) {
-    fail(error instanceof Error ? error.message : "The ledger could not be loaded.");
+    publish({
+      ...snapshot,
+      ready: true,
+      saving: false,
+      storageWarning: true,
+      storageMessage: error instanceof Error ? error.message : "The ledger could not be loaded.",
+      userEmail: user.email ?? null,
+      userName: accountName(user),
+    });
   }
 }
 
@@ -143,17 +148,22 @@ function start() {
     return;
   }
   const supabase = getSupabase();
-  const openLedger = (signedIn: boolean) => {
+  let ticket = 0;
+  supabase.auth.onAuthStateChange((event, session) => {
+    const current = ++ticket;
+    const user = session?.user ?? null;
     window.setTimeout(() => {
-      if (signedIn) void load();
-      else signedOut();
+      if (current !== ticket) return;
+      if (user) {
+        setSignedInUser(user.id);
+        void load(user);
+        return;
+      }
+      if (event === "SIGNED_OUT" || event === "INITIAL_SESSION") {
+        setSignedInUser(null);
+        signedOut();
+      }
     }, 0);
-  };
-  void supabase.auth.getSession().then(({ data }) => {
-    openLedger(Boolean(data.session));
-  });
-  supabase.auth.onAuthStateChange((_event, session) => {
-    openLedger(Boolean(session));
   });
 }
 
