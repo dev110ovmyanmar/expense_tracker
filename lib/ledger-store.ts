@@ -11,7 +11,7 @@ import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInpu
 import { advanceDate, scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
 import { ensureProfile } from "@/lib/profiles";
-import { authLog, getSupabase, hasSignedInUser, isSupabaseConfigured, setSignedInUser } from "@/lib/supabase";
+import { authLog, getSupabase, hasSignedInUser, isSupabaseConfigured, rememberRecoverySession, setSignedInUser } from "@/lib/supabase";
 import type { Category, Expense, ExpenseInput } from "@/types/expense";
 import { DEFAULT_CURRENCY } from "@/types/expense";
 import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
@@ -169,6 +169,11 @@ function start() {
         return;
       }
       if (user) {
+        if (event === "PASSWORD_RECOVERY") {
+          rememberRecoverySession(session);
+          authLog("password recovery", { userId: user.id });
+          return;
+        }
         authLog("opening ledger", { userId: user.id });
         void load(user);
         return;

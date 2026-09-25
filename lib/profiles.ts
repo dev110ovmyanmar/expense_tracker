@@ -19,14 +19,14 @@ export async function ensureProfile(user: { id: string; email?: string | null; u
   try {
     const { error } = await getSupabase().from("profiles").upsert(row, { onConflict: "id" });
     if (error) {
-      console.error("[aura-auth] profile insert failed", { userId: user.id, message: error.message, code: error.code });
+      console.warn("[aura-auth] profile insert failed", { userId: user.id, message: error.message, code: error.code });
       return error.message;
     }
     authLog("profile insert ok", { userId: user.id });
     return null;
   } catch (error) {
     const message = error instanceof Error ? error.message : "The profile could not be saved.";
-    console.error("[aura-auth] profile insert threw", { userId: user.id, message });
+    console.warn("[aura-auth] profile insert threw", { userId: user.id, message });
     return message;
   }
 }

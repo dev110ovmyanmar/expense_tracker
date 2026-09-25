@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { establishRecoverySession, getSupabase, isSupabaseConfigured, setSignedInUser } from "@/lib/supabase";
+import { establishRecoverySession, getSupabase, isSupabaseConfigured, rememberRecoverySession } from "@/lib/supabase";
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -24,16 +24,16 @@ export function ResetPasswordForm() {
     const supabase = getSupabase();
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session?.user || (event !== "PASSWORD_RECOVERY" && event !== "SIGNED_IN")) return;
+      rememberRecoverySession(session);
       window.setTimeout(() => {
         if (cancelled) return;
-        setSignedInUser(session.user.id);
         setCanReset(true);
         setReady(true);
       }, 0);
     });
     void establishRecoverySession().then((ok) => {
       if (cancelled) return;
-      setCanReset(ok);
+      setCanReset((current) => current || ok);
       setReady(true);
     });
     return () => {
