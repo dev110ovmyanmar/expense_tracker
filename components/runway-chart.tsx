@@ -18,14 +18,14 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
         <CardTitle>Financial runway</CardTitle>
         <CardDescription>
           {forecast.payIncluded && forecast.payLabel
-            ? `Current balance minus daily spend, plus unpaid salary on ${forecast.payLabel}.`
-            : "Current balance minus daily spend for the next 30 days. Income already logged is not added again."}
+            ? `Current balance minus daily spend, plus month-end income on ${forecast.payLabel}.`
+            : "Current balance minus daily spend for the next 30 days. Income already logged this month is not added again."}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="grid min-w-0 gap-3 sm:grid-cols-3">
           <Figure label="Daily spend" value={formatMoney(forecast.dailyExpense)} />
-          <Figure label="Monthly salary" value={formatMoney(forecast.monthlySalary)} />
+          <Figure label="Month-end income" value={formatMoney(forecast.monthlySalary)} />
           <Figure
             label="Balance in 30 days"
             value={`${forecast.endingBalance < 0 ? "−" : ""}${formatMoney(Math.abs(forecast.endingBalance))}`}
@@ -98,7 +98,7 @@ export function RunwayChart({ expenses }: { expenses: Expense[] }) {
             <div className="max-w-md space-y-1">
               <p className="font-medium">No runway yet</p>
               <p className="text-sm text-muted-foreground">
-                Log a salary and a few expenses. The line uses that pace for the next 30 days.
+                Log income and a few expenses. Income is counted on the last day of the month.
               </p>
             </div>
           </div>
@@ -120,9 +120,9 @@ function RunwayDot({
   stroke: string;
 }) {
   if (cx == null || cy == null || !payload) return null;
-  const marked = payload.day === 0 || payload.day === 30;
+  const marked = payload.day === 0 || payload.day === 30 || payload.payday;
   if (!marked) return <circle cx={cx} cy={cy} r={2.4} fill={stroke} />;
-  const title = payload.day === 0 ? "Today" : "Day 30";
+  const title = payload.payday ? "Payday" : payload.day === 0 ? "Today" : "Day 30";
   return (
     <g filter="url(#runway-glow)">
       <circle cx={cx} cy={cy} r={10} fill={stroke} opacity={0.18} />
@@ -137,8 +137,8 @@ function RunwayDot({
 function summary(forecast: RunwayForecast, low: boolean): string {
   const ending = `${forecast.endingBalance < 0 ? "−" : ""}${formatMoney(Math.abs(forecast.endingBalance))}`;
   const salary = forecast.payIncluded && forecast.payLabel
-    ? ` Unpaid salary on ${forecast.payLabel} is added once.`
-    : " Logged income stays in the current balance.";
+    ? ` Month-end income on ${forecast.payLabel} is added once.`
+    : " Income already logged stays in the current balance.";
   if (low && forecast.lowDay !== null) {
     const when = forecast.lowDay === 0
       ? "Already under a week of spending."
@@ -166,7 +166,7 @@ function RunwayTooltip({
 }) {
   const point = payload?.[0]?.payload;
   if (!active || !point) return null;
-  const mark = point.day === 0 ? "Today" : point.day === 30 ? "Day 30" : `Day ${point.day}`;
+  const mark = point.payday ? "Month-end payday" : point.day === 0 ? "Today" : point.day === 30 ? "Day 30" : `Day ${point.day}`;
   return (
     <div className="rounded-xl bg-popover px-3 py-2 text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10">
       <p className="text-xs text-muted-foreground">{mark}</p>
