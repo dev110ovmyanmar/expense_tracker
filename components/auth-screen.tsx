@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authLog, getSupabase, setSignedInUser } from "@/lib/supabase";
+import { ensureProfile } from "@/lib/profiles";
 
 export function AuthScreen() {
   const [mode, setMode] = useState<"sign-in" | "sign-up" | "reset">("sign-in");
@@ -103,7 +104,7 @@ export function AuthScreen() {
                     emailRedirectTo: redirectTo,
                   },
                 });
-            void action.then(({ error, data }) => {
+            void action.then(async ({ error, data }) => {
               setBusy(false);
               const message = error?.message ?? "";
               authLog(mode === "sign-in" ? "sign in result" : "sign up result", {
@@ -128,6 +129,11 @@ export function AuthScreen() {
               }
               if (data.session?.user) {
                 setSignedInUser(data.session.user.id);
+                await ensureProfile({
+                  id: data.session.user.id,
+                  email: data.session.user.email,
+                  user_metadata: data.session.user.user_metadata as Record<string, unknown>,
+                });
                 return;
               }
               if (mode === "sign-up") {

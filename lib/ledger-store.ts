@@ -10,6 +10,7 @@ import {
 import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInput, recurringFromInput, saveGoal, saveRecurring, saveSettings } from "@/lib/planning-db";
 import { advanceDate, scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
+import { ensureProfile } from "@/lib/profiles";
 import { authLog, getSupabase, hasSignedInUser, isSupabaseConfigured, setSignedInUser } from "@/lib/supabase";
 import type { Category, Expense, ExpenseInput } from "@/types/expense";
 import { DEFAULT_CURRENCY } from "@/types/expense";
@@ -89,7 +90,7 @@ function fail(message: string) {
   publish({ ...snapshot, ready: true, saving: false, storageWarning: true, storageMessage: message });
 }
 
-async function load(user: { email?: string | null; user_metadata?: Record<string, unknown> }) {
+async function load(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
   if (!isSupabaseConfigured()) {
     fail(MISSING);
     return;
@@ -102,6 +103,7 @@ async function load(user: { email?: string | null; user_metadata?: Record<string
       fetchDailyBills(),
     ]);
     const logged = planning.message ? { expenses: [], recurring: planning.recurring } : await applyAutoLog(planning.recurring);
+    await ensureProfile(user);
     publish({
       expenses: sortExpenses([...logged.expenses, ...ledger.expenses]),
       budget: ledger.budget,
