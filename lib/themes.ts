@@ -5,7 +5,7 @@ export const DEFAULT_THEME = "emerald" as const;
 export const THEMES = [
   { id: "cobalt", name: "Cobalt Night", swatch: "#6d8cff" },
   { id: "emerald", name: "Midnight Emerald", swatch: "#3dbe8b" },
-  { id: "slate", name: "Charcoal & Slate Blue", swatch: "#8aa0c8" },
+  { id: "amber", name: "Ink & Amber", swatch: "#e4b23a" },
   { id: "rose", name: "Obsidian & Rose Gold", swatch: "#e0b08a" },
   { id: "plum", name: "Dusk Plum", swatch: "#c4a4d4" },
 ] as const;

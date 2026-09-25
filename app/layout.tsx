@@ -42,7 +42,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-full">
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var a=["cobalt","emerald","slate","rose","plum"];var t=localStorage.getItem("aura-theme");if(a.indexOf(t)<0)t="emerald";document.documentElement.dataset.theme=t;document.documentElement.classList.add("dark")}catch(e){}`,
+            __html: `try{var a=["cobalt","emerald","amber","rose","plum"];var t=localStorage.getItem("aura-theme");if(a.indexOf(t)<0)t="emerald";document.documentElement.dataset.theme=t;document.documentElement.classList.add("dark")}catch(e){}`,
           }}
         />
         <ThemeProvider>
