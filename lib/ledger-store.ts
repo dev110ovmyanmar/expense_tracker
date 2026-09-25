@@ -96,6 +96,7 @@ async function load(user: { id: string; email?: string | null; user_metadata?: R
     return;
   }
   try {
+    await ensureProfile(user);
     const [ledger, planning, settings, dailyBills] = await Promise.all([
       fetchRemoteLedger(),
       fetchPlanning(),
@@ -103,7 +104,6 @@ async function load(user: { id: string; email?: string | null; user_metadata?: R
       fetchDailyBills(),
     ]);
     const logged = planning.message ? { expenses: [], recurring: planning.recurring } : await applyAutoLog(planning.recurring);
-    await ensureProfile(user);
     publish({
       expenses: sortExpenses([...logged.expenses, ...ledger.expenses]),
       budget: ledger.budget,
