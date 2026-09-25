@@ -1,21 +1,32 @@
 import { authLog, getSupabase } from "@/lib/supabase";
 
-export async function ensureProfile(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
+function profileName(user: { email?: string | null; user_metadata?: Record<string, unknown> }) {
   const meta = user.user_metadata ?? {};
   const named = ["full_name", "user_name", "display_name", "name"]
     .map((key) => meta[key])
     .find((value): value is string => typeof value === "string" && value.trim().length > 0);
-  const fullName = named?.trim() || user.email?.split("@")[0] || null;
-  const { error } = await getSupabase().from("profiles").upsert(
-    {
-      id: user.id,
-      email: user.email ?? null,
-      full_name: fullName,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "id" },
-  );
-  if (error) {
-    authLog("profile upsert skipped, session kept", { message: error.message, userId: user.id });
+  return named?.trim() || user.email?.split("@")[0] || null;
+}
+
+export async function ensureProfile(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
+  const row = {
+    id: user.id,
+    email: user.email ?? null,
+    full_name: profileName(user),
+    updated_at: new Date().toISOString(),
+  };
+  authLog("profile insert start", { userId: user.id, email: user.email ?? null });
+  try {
+    const { error } = await getSupabase().from("profiles").upsert(row, { onConflict: "id" });
+    if (error) {
+      console.error("[aura-auth] profile insert failed", { userId: user.id, message: error.message, code: error.code });
+      return error.message;
+    }
+    authLog("profile insert ok", { userId: user.id });
+    return null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The profile could not be saved.";
+    console.error("[aura-auth] profile insert threw", { userId: user.id, message });
+    return message;
   }
 }

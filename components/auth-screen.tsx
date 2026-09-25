@@ -105,40 +105,60 @@ export function AuthScreen() {
                   },
                 });
             void action.then(async ({ error, data }) => {
-              setBusy(false);
-              const message = error?.message ?? "";
-              authLog(mode === "sign-in" ? "sign in result" : "sign up result", {
-                hasSession: Boolean(data.session),
-                userId: data.user?.id ?? data.session?.user?.id ?? null,
-                confirmed: Boolean(data.session),
-                error: message || null,
-              });
-              if (/email not confirmed/i.test(message)) {
-                setNotice("Confirm your email first. Open the link from Supabase, then sign in.");
-                return;
-              }
-              const alreadyRegistered = /already registered|already been registered|already exists/i.test(message);
-              const hiddenDuplicate = mode === "sign-up" && !error && !data.session && Array.isArray(data.user?.identities) && data.user.identities.length === 0;
-              if (alreadyRegistered || hiddenDuplicate) {
-                setNotice("This email already has an account. Deleting ledger rows does not remove the login. Sign in, or delete that user in Supabase under Authentication, then Users.");
-                return;
-              }
-              if (error) {
-                setNotice(message);
-                return;
-              }
-              if (data.session?.user) {
-                setSignedInUser(data.session.user.id);
-                await ensureProfile({
-                  id: data.session.user.id,
-                  email: data.session.user.email,
-                  user_metadata: data.session.user.user_metadata as Record<string, unknown>,
+              try {
+                setBusy(false);
+                const message = error?.message ?? "";
+                const userId = data.user?.id ?? data.session?.user?.id ?? null;
+                authLog(mode === "sign-in" ? "sign in result" : "sign up result", {
+                  hasSession: Boolean(data.session),
+                  userId,
+                  confirmed: Boolean(data.session),
+                  error: message || null,
                 });
-                return;
-              }
-              if (mode === "sign-up") {
-                toast.success("Check your email to confirm the account.");
-                setNotice("Confirm the email from Supabase, then sign in. You stay signed out until that link is opened.");
+                if (/email not confirmed/i.test(message)) {
+                  setNotice("Confirm your email first. Open the link from Supabase, then sign in.");
+                  return;
+                }
+                const alreadyRegistered = /already registered|already been registered|already exists/i.test(message);
+                const hiddenDuplicate = mode === "sign-up" && !error && !data.session && Array.isArray(data.user?.identities) && data.user.identities.length === 0;
+                if (alreadyRegistered || hiddenDuplicate) {
+                  setNotice("This email already has an account. Deleting ledger rows does not remove the login. Sign in, or delete that user in Supabase under Authentication, then Users.");
+                  return;
+                }
+                if (error || !userId) {
+                  setNotice(message || "The account could not be created.");
+                  return;
+                }
+                if (!data.session) {
+                  toast.success("Check your email to confirm the account.");
+                  setNotice("Confirm the email from Supabase, then sign in. You stay signed out until that link is opened.");
+                  return;
+                }
+                const { error: sessionError } = await auth.setSession({
+                  access_token: data.session.access_token,
+                  refresh_token: data.session.refresh_token,
+                });
+                if (sessionError) {
+                  console.error("[aura-auth] session persist failed", { userId, message: sessionError.message });
+                  setNotice(sessionError.message);
+                  return;
+                }
+                setSignedInUser(userId);
+                const stored = window.localStorage.getItem("aura-auth");
+                authLog("session stored", { userId, stored: Boolean(stored) });
+                const profileError = await ensureProfile({
+                  id: userId,
+                  email: data.user?.email ?? data.session.user.email,
+                  user_metadata: (data.user?.user_metadata ?? data.session.user.user_metadata) as Record<string, unknown>,
+                });
+                if (profileError) {
+                  toast.error("Could not create your profile", { description: profileError });
+                  setNotice(profileError);
+                }
+              } catch (caught) {
+                const message = caught instanceof Error ? caught.message : "Sign-up could not finish.";
+                console.error("[aura-auth] sign-up threw", { message });
+                setNotice(message);
               }
             });
           }}
