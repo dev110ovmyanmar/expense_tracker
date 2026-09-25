@@ -19,7 +19,7 @@ export function ProfileForm() {
       <PageHeader
         eyebrow="Account"
         title="Profile"
-        description="This name is what the sidebar shows."
+        description="This name is saved on your account and shown in the sidebar."
       />
       <form
         className="grid gap-3 rounded-xl bg-card px-4 py-4 ring-1 ring-foreground/10"

@@ -10,7 +10,7 @@ import {
 import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInput, recurringFromInput, saveGoal, saveRecurring, saveSettings } from "@/lib/planning-db";
 import { advanceDate, scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabase, isSupabaseConfigured, ledgerOwnerId } from "@/lib/supabase";
 import type { Category, Expense, ExpenseInput } from "@/types/expense";
 import { DEFAULT_CURRENCY } from "@/types/expense";
 import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
@@ -74,24 +74,26 @@ function sortExpenses(expenses: Expense[]): Expense[] {
   });
 }
 
-const NAME_KEY = "aura-display-name";
-
-function readDisplayName(): string | null {
-  if (typeof window === "undefined") return null;
-  const name = window.localStorage.getItem(NAME_KEY)?.trim();
-  return name || null;
+function displayName(user: { email?: string | null; user_metadata?: Record<string, unknown> } | null): string | null {
+  if (!user) return null;
+  const meta = user.user_metadata ?? {};
+  for (const key of ["full_name", "user_name", "display_name", "name"]) {
+    const value = meta[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return user.email?.split("@")[0]?.trim() || null;
 }
 
 function fail(message: string) {
   publish({ ...snapshot, ready: true, saving: false, storageWarning: true, storageMessage: message });
 }
 
-async function load() {
+async function load(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
   if (!isSupabaseConfigured()) {
     fail(MISSING);
     return;
   }
-  const userName = readDisplayName();
+  const userName = displayName(user);
   try {
     const [ledger, planning, settings, dailyBills] = await Promise.all([
       fetchRemoteLedger(),
@@ -108,7 +110,7 @@ async function load() {
       goals: planning.goals,
       dailyBills,
       planningMessage: planning.message,
-      userEmail: null,
+      userEmail: user.email ?? null,
       userName,
       dailyReminder: settings.dailyReminder,
       lastReminded: settings.lastReminded,
@@ -125,20 +127,25 @@ async function load() {
       saving: false,
       storageWarning: true,
       storageMessage: message,
-      userEmail: null,
+      userEmail: user.email ?? null,
       userName,
     });
   }
 }
 
+export function syncLedgerSession(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null) {
+  if (!isSupabaseConfigured()) return;
+  if (!user) {
+    publish({ ...SERVER_SNAPSHOT, ready: true });
+    return;
+  }
+  void load(user);
+}
+
 function start() {
   if (started || typeof window === "undefined") return;
   started = true;
-  if (!isSupabaseConfigured()) {
-    fail(MISSING);
-    return;
-  }
-  void load();
+  if (!isSupabaseConfigured()) fail(MISSING);
 }
 
 function requireReady() {
@@ -500,7 +507,10 @@ export async function updateDisplayName(name: string) {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Add a user name.");
   if (trimmed.length > 40) throw new Error("Keep the user name under 40 characters.");
-  window.localStorage.setItem(NAME_KEY, trimmed);
+  const supabase = getSupabase();
+  const { error } = await supabase.auth.updateUser({ data: { full_name: trimmed, user_name: trimmed } });
+  if (error) throw new Error(error.message);
+  await supabase.from("profiles").update({ full_name: trimmed, updated_at: new Date().toISOString() }).eq("id", ledgerOwnerId());
   publish({ ...snapshot, userName: trimmed });
 }
 

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { budgetBarClass, budgetLevel } from "@/lib/budget-status";
 import { expensesInMonth, ofType, sumAmounts } from "@/lib/expenses";
+import { useAuth } from "@/context/AuthContext";
 import { formatMoney, formatMonth, moneyInput, parseMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ const NAV = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { storageWarning, storageMessage, hydrated, userName } = useExpenses();
+  const { configured, signOut } = useAuth();
 
   if (!hydrated) {
     return <div className="grid min-h-svh place-items-center text-sm text-muted-foreground">Loading…</div>;
@@ -53,6 +55,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link href="/profile" className="min-w-0 flex-1 truncate text-sm font-medium">
                 {userName ?? "Profile"}
               </Link>
+              {configured ? (
+                <button type="button" className="shrink-0 text-xs text-muted-foreground" onClick={() => void signOut()}>
+                  Log out
+                </button>
+              ) : null}
             </div>
             <ThemePicker />
           </div>

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
-import { AppShell } from "@/components/app-shell";
+import { AuthGuard } from "@/components/auth-guard";
 import { ExpenseProvider } from "@/components/expense-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/context/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -45,10 +46,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }}
         />
         <ThemeProvider>
-          <ExpenseProvider>
-            <AppShell>{children}</AppShell>
-            <Toaster />
-          </ExpenseProvider>
+          <AuthProvider>
+            <ExpenseProvider>
+              <AuthGuard>{children}</AuthGuard>
+              <Toaster />
+            </ExpenseProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
