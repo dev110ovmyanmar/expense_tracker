@@ -189,6 +189,46 @@ export async function deleteRemoteExpense(id: string) {
   if (error) throw new Error(friendlyError(error.message));
 }
 
+function optionalTable(message: string): boolean {
+  return /schema cache|does not exist|could not find the table|PGRST205/i.test(message);
+}
+
+async function deleteOwned(table: "daily_bills" | "recurring_items" | "savings_goals" | "expenses", userId: string) {
+  const supabase = getSupabase();
+  const { error } = await supabase.from(table).delete().eq("user_id", userId);
+  if (!error) return;
+  if (table !== "expenses" && optionalTable(error.message)) return;
+  throw new Error(friendlyError(error.message));
+}
+
+export async function clearRemoteLedger() {
+  const supabase = getSupabase();
+  const userId = ledgerOwnerId();
+  const listed = await supabase.from("expenses").select("id").eq("user_id", userId);
+  if (listed.error) throw new Error(friendlyError(listed.error.message));
+  const expenseIds = (listed.data ?? []).map((row) => row.id).filter((id): id is string => typeof id === "string");
+  for (let index = 0; index < expenseIds.length; index += 100) {
+    const chunk = expenseIds.slice(index, index + 100);
+    const removed = await supabase.from("receipt_items").delete().in("expense_id", chunk);
+    if (removed.error && !optionalTable(removed.error.message)) throw new Error(friendlyError(removed.error.message));
+  }
+  await deleteOwned("daily_bills", userId);
+  await deleteOwned("recurring_items", userId);
+  await deleteOwned("savings_goals", userId);
+  await deleteOwned("expenses", userId);
+  try {
+    await saveRemoteBudget(DEFAULT_BUDGET, {});
+  } catch (error) {
+    if (!(error instanceof Error) || !/category_limits/i.test(error.message)) throw error;
+    const { error: budgetError } = await getSupabase().from("budgets").upsert({
+      user_id: userId,
+      amount: DEFAULT_BUDGET,
+      updated_at: new Date().toISOString(),
+    });
+    if (budgetError) throw new Error(friendlyError(budgetError.message));
+  }
+}
+
 export async function saveRemoteBudget(amount: number, categoryLimits: CategoryLimits = {}) {
   const supabase = getSupabase();
   const { error } = await supabase.from("budgets").upsert({

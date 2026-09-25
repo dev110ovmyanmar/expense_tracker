@@ -4,6 +4,7 @@ import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNod
 import {
   addExpense,
   addDailyBill,
+  clearLedger,
   addGoal,
   addRecurring,
   addToGoal,
@@ -61,6 +62,7 @@ interface ExpenseContextValue {
   setDailyReminder: (enabled: boolean) => Promise<void>;
   markReminded: (day: string) => Promise<void>;
   updateDisplayName: (name: string) => Promise<void>;
+  clearLedger: () => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -106,6 +108,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       setDailyReminder,
       markReminded,
       updateDisplayName,
+      clearLedger,
     }),
     [ledger],
   );

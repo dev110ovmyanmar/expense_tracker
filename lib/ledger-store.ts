@@ -2,6 +2,7 @@ import { isExpenseCategory, type CategoryLimits } from "@/lib/budget-status";
 import { insertDailyBill, fetchDailyBills, type DailyBill } from "@/lib/daily-bills";
 import { todayISO } from "@/lib/format";
 import {
+  clearRemoteLedger,
   deleteRemoteExpense,
   fetchRemoteLedger,
   saveRemoteBudget,
@@ -500,6 +501,30 @@ export async function markReminded(day: string) {
     publish({ ...snapshot, lastReminded: day });
   } catch {
     publish({ ...snapshot, lastReminded: day });
+  }
+}
+
+export async function clearLedger() {
+  requireReady();
+  publish({ ...snapshot, saving: true });
+  try {
+    await clearRemoteLedger();
+    publish({
+      ...snapshot,
+      expenses: [],
+      budget: DEFAULT_BUDGET,
+      categoryLimits: {},
+      recurring: [],
+      goals: [],
+      dailyBills: [],
+      saving: false,
+      storageWarning: false,
+      storageMessage: null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The ledger could not be cleared.";
+    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
   }
 }
 
