@@ -10,7 +10,7 @@ import {
 import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInput, recurringFromInput, saveGoal, saveRecurring, saveSettings } from "@/lib/planning-db";
 import { advanceDate, scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
-import { getSupabase, hasSignedInUser, isSupabaseConfigured, setSignedInUser } from "@/lib/supabase";
+import { authLog, getSupabase, hasSignedInUser, isSupabaseConfigured, setSignedInUser } from "@/lib/supabase";
 import type { Category, Expense, ExpenseInput } from "@/types/expense";
 import { DEFAULT_CURRENCY } from "@/types/expense";
 import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
@@ -120,12 +120,14 @@ async function load(user: { email?: string | null; user_metadata?: Record<string
       storageMessage: null,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "The ledger could not be loaded.";
+    authLog("ledger load failed, session kept", { message });
     publish({
       ...snapshot,
       ready: true,
       saving: false,
       storageWarning: true,
-      storageMessage: error instanceof Error ? error.message : "The ledger could not be loaded.",
+      storageMessage: message,
       userEmail: user.email ?? null,
       userName: accountName(user),
     });
@@ -150,23 +152,37 @@ function start() {
   const supabase = getSupabase();
   let ticket = 0;
   supabase.auth.onAuthStateChange((event, session) => {
-    const current = ++ticket;
     const user = session?.user ?? null;
+    authLog("auth event", {
+      event,
+      userId: user?.id ?? null,
+      hasAccessToken: Boolean(session?.access_token),
+      expiresAt: session?.expires_at ?? null,
+    });
+    if (user) setSignedInUser(user.id);
+    const current = ++ticket;
     window.setTimeout(() => {
-      if (current !== ticket) return;
+      if (current !== ticket) {
+        authLog("ignored stale auth event", { event, ticket: current });
+        return;
+      }
       if (user) {
-        setSignedInUser(user.id);
+        authLog("opening ledger", { userId: user.id });
         void load(user);
         return;
       }
       if (event === "SIGNED_OUT") {
+        authLog("signed out");
         setSignedInUser(null);
         signedOut();
         return;
       }
       if (event === "INITIAL_SESSION" && !hasSignedInUser()) {
+        authLog("no stored session");
         signedOut();
+        return;
       }
+      authLog("empty auth event ignored", { event, keptUser: hasSignedInUser() });
     }, 0);
   });
 }

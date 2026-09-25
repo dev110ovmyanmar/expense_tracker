@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getSupabase, setSignedInUser } from "@/lib/supabase";
+import { authLog, getSupabase, setSignedInUser } from "@/lib/supabase";
 
 export function AuthScreen() {
   const [mode, setMode] = useState<"sign-in" | "sign-up" | "reset">("sign-in");
@@ -106,6 +106,12 @@ export function AuthScreen() {
             void action.then(({ error, data }) => {
               setBusy(false);
               const message = error?.message ?? "";
+              authLog(mode === "sign-in" ? "sign in result" : "sign up result", {
+                hasSession: Boolean(data.session),
+                userId: data.user?.id ?? data.session?.user?.id ?? null,
+                confirmed: Boolean(data.session),
+                error: message || null,
+              });
               if (/email not confirmed/i.test(message)) {
                 setNotice("Confirm your email first. Open the link from Supabase, then sign in.");
                 return;

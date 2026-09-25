@@ -15,6 +15,10 @@ export function hasSignedInUser(): boolean {
   return Boolean(signedInUserId);
 }
 
+export function authLog(step: string, detail: Record<string, unknown> = {}) {
+  console.info("[aura-auth]", step, detail);
+}
+
 export async function currentUserId(): Promise<string> {
   if (signedInUserId) return signedInUserId;
   const { data } = await getSupabase().auth.getSession();
@@ -43,6 +47,7 @@ export function getSupabase(): SupabaseClient {
         detectSessionInUrl: true,
         flowType: "pkce",
         storage: window.localStorage,
+        storageKey: "aura-auth",
       },
     });
   }

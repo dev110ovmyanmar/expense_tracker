@@ -1,6 +1,6 @@
 import { saveReceiptItems } from "@/lib/price-intel";
 import { DEFAULT_BUDGET } from "@/lib/seed";
-import { currentUserId, getSupabase } from "@/lib/supabase";
+import { authLog, currentUserId, getSupabase } from "@/lib/supabase";
 import { parseCategoryLimits, type CategoryLimits } from "@/lib/budget-status";
 import { CATEGORIES, DEFAULT_CURRENCY, type Category, type Expense, type ExpenseSource, type LineItem } from "@/types/expense";
 
@@ -161,8 +161,12 @@ export async function upsertExpenses(expenses: Expense[]) {
   if (expenses.length === 0) return;
   const supabase = getSupabase();
   const userId = await currentUserId();
+  authLog("insert expenses", { userId, count: expenses.length });
   const { error } = await supabase.from("expenses").upsert(expenses.map((expense) => expenseToRow(expense, userId)));
-  if (error) throw new Error(friendlyError(error.message));
+  if (error) {
+    authLog("expense save blocked, session kept", { message: error.message, userId });
+    throw new Error(friendlyError(error.message));
+  }
   for (const expense of expenses) {
     if (expense.source === "ocr") await saveReceiptItems(expense);
   }
