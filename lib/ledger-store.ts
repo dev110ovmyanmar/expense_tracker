@@ -95,8 +95,10 @@ async function load() {
     return;
   }
   try {
+    const { data: sessionData } = await getSupabase().auth.getSession();
+    const sessionUser = sessionData.session?.user ?? null;
     const [{ data: userData }, ledger, planning, settings, dailyBills] = await Promise.all([
-      getSupabase().auth.getUser(),
+      sessionUser ? Promise.resolve({ data: { user: sessionUser } }) : getSupabase().auth.getUser(),
       fetchRemoteLedger(),
       fetchPlanning(),
       fetchSettings(),
@@ -141,13 +143,17 @@ function start() {
     return;
   }
   const supabase = getSupabase();
+  const openLedger = (signedIn: boolean) => {
+    window.setTimeout(() => {
+      if (signedIn) void load();
+      else signedOut();
+    }, 0);
+  };
   void supabase.auth.getSession().then(({ data }) => {
-    if (data.session) void load();
-    else signedOut();
+    openLedger(Boolean(data.session));
   });
   supabase.auth.onAuthStateChange((_event, session) => {
-    if (session) void load();
-    else signedOut();
+    openLedger(Boolean(session));
   });
 }
 

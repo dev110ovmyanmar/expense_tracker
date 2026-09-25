@@ -7,9 +7,13 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export async function currentUserId(): Promise<string> {
-  const { data, error } = await getSupabase().auth.getUser();
-  if (error || !data.user) throw new Error("Sign in to open your ledger.");
-  return data.user.id;
+  const supabase = getSupabase();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const sessionUser = sessionData.session?.user;
+  if (sessionUser?.id) return sessionUser.id;
+  const { data, error } = await supabase.auth.getUser();
+  if (data.user?.id) return data.user.id;
+  throw new Error(error?.message || "Sign in to open your ledger.");
 }
 
 export function getSupabase(): SupabaseClient {

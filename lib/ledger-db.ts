@@ -112,7 +112,7 @@ function expenseToRow(expense: Expense, userId: string) {
 }
 
 export async function fetchRemoteLedger(supabase = getSupabase()): Promise<RemoteLedger> {
-  const userId = (await supabase.auth.getUser()).data.user?.id;
+  const userId = (await supabase.auth.getSession()).data.session?.user?.id;
   const [expensesResult, budgetResult] = await Promise.all([
     supabase
       .from("expenses")
