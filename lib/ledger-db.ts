@@ -84,7 +84,10 @@ const LIMITS_MISSING =
 function friendlyError(message: string): string {
   if (/category_limits/i.test(message)) return LIMITS_MISSING;
   if (/anonymous sign-ins are disabled/i.test(message)) return LOCKED;
-  if (/row-level security|permission denied|violates foreign key/i.test(message)) return LOCKED;
+  if (/violates foreign key/i.test(message)) return LOCKED;
+  if (/row-level security|permission denied/i.test(message)) {
+    return "The save was blocked because the row did not match the signed-in account. Sign in again, then retry.";
+  }
   return message;
 }
 

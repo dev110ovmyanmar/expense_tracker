@@ -11,6 +11,10 @@ export function setSignedInUser(userId: string | null) {
   signedInUserId = userId;
 }
 
+export function hasSignedInUser(): boolean {
+  return Boolean(signedInUserId);
+}
+
 export async function currentUserId(): Promise<string> {
   if (signedInUserId) return signedInUserId;
   const { data } = await getSupabase().auth.getSession();
@@ -28,6 +32,19 @@ export function getSupabase(): SupabaseClient {
   if (!url || !key) {
     throw new Error("Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
   }
-  if (!client) client = createClient(url, key);
+  if (typeof window === "undefined") {
+    throw new Error("Sign in from the browser to open your ledger.");
+  }
+  if (!client) {
+    client = createClient(url, key, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: "pkce",
+        storage: window.localStorage,
+      },
+    });
+  }
   return client;
 }

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabase, setSignedInUser } from "@/lib/supabase";
 
 export function AuthScreen() {
   const [mode, setMode] = useState<"sign-in" | "sign-up" | "reset">("sign-in");
@@ -92,28 +92,41 @@ export function AuthScreen() {
             setBusy(true);
             setNotice("");
             const auth = getSupabase().auth;
+            const redirectTo = `${window.location.origin}/`;
             const action = mode === "sign-in"
               ? auth.signInWithPassword({ email: email.trim(), password })
               : auth.signUp({
                   email: email.trim(),
                   password,
-                  options: { data: { full_name: name, user_name: name } },
+                  options: {
+                    data: { full_name: name, user_name: name },
+                    emailRedirectTo: redirectTo,
+                  },
                 });
             void action.then(({ error, data }) => {
               setBusy(false);
-              const alreadyRegistered = /already registered|already been registered|already exists/i.test(error?.message ?? "");
+              const message = error?.message ?? "";
+              if (/email not confirmed/i.test(message)) {
+                setNotice("Confirm your email first. Open the link from Supabase, then sign in.");
+                return;
+              }
+              const alreadyRegistered = /already registered|already been registered|already exists/i.test(message);
               const hiddenDuplicate = mode === "sign-up" && !error && !data.session && Array.isArray(data.user?.identities) && data.user.identities.length === 0;
               if (alreadyRegistered || hiddenDuplicate) {
                 setNotice("This email already has an account. Deleting ledger rows does not remove the login. Sign in, or delete that user in Supabase under Authentication, then Users.");
                 return;
               }
               if (error) {
-                setNotice(error.message);
+                setNotice(message);
                 return;
               }
-              if (mode === "sign-up" && !data.session) {
+              if (data.session?.user) {
+                setSignedInUser(data.session.user.id);
+                return;
+              }
+              if (mode === "sign-up") {
                 toast.success("Check your email to confirm the account.");
-                setNotice("Confirm the email, then sign in.");
+                setNotice("Confirm the email from Supabase, then sign in. You stay signed out until that link is opened.");
               }
             });
           }}

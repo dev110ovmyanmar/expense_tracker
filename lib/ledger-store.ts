@@ -10,7 +10,7 @@ import {
 import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInput, recurringFromInput, saveGoal, saveRecurring, saveSettings } from "@/lib/planning-db";
 import { advanceDate, scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
-import { getSupabase, isSupabaseConfigured, setSignedInUser } from "@/lib/supabase";
+import { getSupabase, hasSignedInUser, isSupabaseConfigured, setSignedInUser } from "@/lib/supabase";
 import type { Category, Expense, ExpenseInput } from "@/types/expense";
 import { DEFAULT_CURRENCY } from "@/types/expense";
 import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
@@ -159,8 +159,12 @@ function start() {
         void load(user);
         return;
       }
-      if (event === "SIGNED_OUT" || event === "INITIAL_SESSION") {
+      if (event === "SIGNED_OUT") {
         setSignedInUser(null);
+        signedOut();
+        return;
+      }
+      if (event === "INITIAL_SESSION" && !hasSignedInUser()) {
         signedOut();
       }
     }, 0);
