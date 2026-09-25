@@ -1,4 +1,4 @@
-import { currentUserId, getSupabase } from "@/lib/supabase";
+import { getSupabase, ledgerOwnerId } from "@/lib/supabase";
 import { EXPENSE_CATEGORIES, type Category } from "@/types/expense";
 
 export interface DailyBill {
@@ -49,7 +49,7 @@ export async function insertDailyBill(bill: DailyBill) {
   const supabase = getSupabase();
   const { error } = await supabase.from("daily_bills").insert({
     id: bill.id,
-    user_id: await currentUserId(),
+    user_id: ledgerOwnerId(),
     title: bill.title,
     amount: bill.amount,
     category: bill.category,

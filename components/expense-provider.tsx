@@ -17,7 +17,6 @@ import {
   setBudget,
   setCategoryLimit,
   setDailyReminder,
-  signOut,
   subscribeLedger,
   updateDisplayName,
   updateExpense,
@@ -61,7 +60,6 @@ interface ExpenseContextValue {
   addToGoal: (id: string, amount: number, monthly?: boolean) => Promise<void>;
   setDailyReminder: (enabled: boolean) => Promise<void>;
   markReminded: (day: string) => Promise<void>;
-  signOut: () => Promise<void>;
   updateDisplayName: (name: string) => Promise<void>;
 }
 
@@ -107,7 +105,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       addToGoal,
       setDailyReminder,
       markReminded,
-      signOut,
       updateDisplayName,
     }),
     [ledger],

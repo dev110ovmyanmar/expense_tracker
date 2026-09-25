@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function ProfileForm() {
-  const { userEmail, userName, updateDisplayName } = useExpenses();
+  const { userName, updateDisplayName } = useExpenses();
   const [draft, setDraft] = useState<string | null>(null);
   const name = draft ?? userName ?? "";
   const [busy, setBusy] = useState(false);
@@ -19,7 +19,7 @@ export function ProfileForm() {
       <PageHeader
         eyebrow="Account"
         title="Profile"
-        description="This name is what the sidebar shows beside Log out."
+        description="This name is what the sidebar shows."
       />
       <form
         className="grid gap-3 rounded-xl bg-card px-4 py-4 ring-1 ring-foreground/10"
@@ -36,10 +36,6 @@ export function ProfileForm() {
             .finally(() => setBusy(false));
         }}
       >
-        <div className="grid gap-1.5">
-          <Label htmlFor="profile-email">Email</Label>
-          <Input id="profile-email" value={userEmail ?? ""} readOnly className="h-11" />
-        </div>
         <div className="grid gap-1.5">
           <Label htmlFor="profile-name">Display name</Label>
           <Input

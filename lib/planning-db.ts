@@ -1,4 +1,4 @@
-import { currentUserId, getSupabase } from "@/lib/supabase";
+import { getSupabase, ledgerOwnerId } from "@/lib/supabase";
 import { CATEGORIES, type Category } from "@/types/expense";
 import type { Frequency, RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
 
@@ -113,7 +113,7 @@ export async function fetchPlanning(): Promise<{
 async function recurringRow(item: RecurringItem) {
   return {
     id: item.id,
-    user_id: await currentUserId(),
+    user_id: ledgerOwnerId(),
     name: item.name,
     amount: item.amount,
     category: item.category,
@@ -146,7 +146,7 @@ export function recurringFromInput(id: string, input: RecurringInput, createdAt:
 async function goalRow(goal: SavingsGoal) {
   return {
     id: goal.id,
-    user_id: await currentUserId(),
+    user_id: ledgerOwnerId(),
     name: goal.name,
     target_amount: goal.targetAmount,
     target_date: goal.targetDate,
@@ -177,12 +177,7 @@ export interface UserSettings {
 
 export async function fetchSettings(): Promise<UserSettings> {
   const supabase = getSupabase();
-  let userId: string;
-  try {
-    userId = await currentUserId();
-  } catch {
-    return { dailyReminder: false, lastReminded: null };
-  }
+  const userId = ledgerOwnerId();
   const { data, error } = await supabase.from("user_settings").select("daily_reminder, last_reminded").eq("user_id", userId).maybeSingle();
   if (error) {
     if (/user_settings|schema cache|does not exist/i.test(error.message)) return { dailyReminder: false, lastReminded: null };
@@ -197,7 +192,7 @@ export async function fetchSettings(): Promise<UserSettings> {
 export async function saveSettings(settings: UserSettings) {
   const supabase = getSupabase();
   const { error } = await supabase.from("user_settings").upsert({
-    user_id: await currentUserId(),
+    user_id: ledgerOwnerId(),
     daily_reminder: settings.dailyReminder,
     last_reminded: settings.lastReminded,
     updated_at: new Date().toISOString(),

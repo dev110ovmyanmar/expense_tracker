@@ -2,7 +2,7 @@
 
 A daily personal expense ledger. Track spending against a monthly budget, filter the full ledger, and scan a receipt into an editable preview before it is saved.
 
-Expenses and the budget are stored in Supabase. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Run `supabase/migrations/001_expenses.sql` on a new project, or `supabase/migrations/002_public_ledger.sql` if the tables already exist. Run `supabase/migrations/004_recurring_and_goals.sql` for fixed bills and savings goals. Run `supabase/migrations/005_user_auth.sql` so each signed-in account only sees its own rows. Run `supabase/migrations/006_category_budgets.sql` for category spending limits. Run `supabase/migrations/007_daily_bills.sql` for daily bills. Run `supabase/migrations/009_profiles.sql` so each new account gets a public profile row. Sign up and sign in from the app. A daily reminder can prompt you to log expenses. The app does not keep a ledger in the browser.
+Expenses and the budget are stored in Supabase. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Run `supabase/migrations/001_expenses.sql` on a new project, or `supabase/migrations/002_public_ledger.sql` if the tables already exist. Run `supabase/migrations/004_recurring_and_goals.sql` for fixed bills and savings goals. Run `supabase/migrations/006_category_budgets.sql` for category spending limits. Run `supabase/migrations/007_daily_bills.sql` for daily bills. Run `supabase/migrations/010_open_ledger.sql` so the ledger opens without a sign-in. A daily reminder can prompt you to log expenses. The app does not keep a ledger in the browser.
 
 ## Run it
 

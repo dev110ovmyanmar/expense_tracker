@@ -10,8 +10,7 @@ import {
 import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInput, recurringFromInput, saveGoal, saveRecurring, saveSettings } from "@/lib/planning-db";
 import { advanceDate, scheduleCatchUp } from "@/lib/recurring";
 import { DEFAULT_BUDGET } from "@/lib/seed";
-import { ensureProfile } from "@/lib/profiles";
-import { authLog, getSupabase, hasSignedInUser, isSupabaseConfigured, rememberRecoverySession, setSignedInUser } from "@/lib/supabase";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import type { Category, Expense, ExpenseInput } from "@/types/expense";
 import { DEFAULT_CURRENCY } from "@/types/expense";
 import type { RecurringInput, RecurringItem, SavingsGoal, SavingsGoalInput } from "@/types/planning";
@@ -75,29 +74,25 @@ function sortExpenses(expenses: Expense[]): Expense[] {
   });
 }
 
-function accountName(user: { email?: string | null; user_metadata?: Record<string, unknown> } | null): string | null {
-  if (!user) return null;
-  const meta = user.user_metadata ?? {};
-  for (const key of ["full_name", "user_name", "display_name", "name"]) {
-    const value = meta[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  const username = user.email?.split("@")[0]?.trim();
-  return username || null;
+const NAME_KEY = "aura-display-name";
+
+function readDisplayName(): string | null {
+  if (typeof window === "undefined") return null;
+  const name = window.localStorage.getItem(NAME_KEY)?.trim();
+  return name || null;
 }
 
 function fail(message: string) {
   publish({ ...snapshot, ready: true, saving: false, storageWarning: true, storageMessage: message });
 }
 
-async function load(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
+async function load() {
   if (!isSupabaseConfigured()) {
     fail(MISSING);
     return;
   }
+  const userName = readDisplayName();
   try {
-    setSignedInUser(user.id);
-    await ensureProfile(user);
     const [ledger, planning, settings, dailyBills] = await Promise.all([
       fetchRemoteLedger(),
       fetchPlanning(),
@@ -113,8 +108,8 @@ async function load(user: { id: string; email?: string | null; user_metadata?: R
       goals: planning.goals,
       dailyBills,
       planningMessage: planning.message,
-      userEmail: user.email ?? null,
-      userName: accountName(user),
+      userEmail: null,
+      userName,
       dailyReminder: settings.dailyReminder,
       lastReminded: settings.lastReminded,
       ready: true,
@@ -124,38 +119,16 @@ async function load(user: { id: string; email?: string | null; user_metadata?: R
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The ledger could not be loaded.";
-    if (/sign in to open your ledger/i.test(message)) {
-      authLog("ledger opened without a second session check", { userId: user.id });
-      publish({
-        ...snapshot,
-        ready: true,
-        saving: false,
-        storageWarning: false,
-        storageMessage: null,
-        userEmail: user.email ?? null,
-        userName: accountName(user),
-      });
-      return;
-    }
-    authLog("ledger load failed, session kept", { message });
     publish({
       ...snapshot,
       ready: true,
       saving: false,
       storageWarning: true,
       storageMessage: message,
-      userEmail: user.email ?? null,
-      userName: accountName(user),
+      userEmail: null,
+      userName,
     });
   }
-}
-
-function signedOut() {
-  publish({
-    ...SERVER_SNAPSHOT,
-    ready: true,
-    userEmail: null,
-  });
 }
 
 function start() {
@@ -165,47 +138,7 @@ function start() {
     fail(MISSING);
     return;
   }
-  const supabase = getSupabase();
-  let ticket = 0;
-  supabase.auth.onAuthStateChange((event, session) => {
-    const user = session?.user ?? null;
-    authLog("auth event", {
-      event,
-      userId: user?.id ?? null,
-      hasAccessToken: Boolean(session?.access_token),
-      expiresAt: session?.expires_at ?? null,
-    });
-    if (user) setSignedInUser(user.id);
-    const current = ++ticket;
-    window.setTimeout(() => {
-      if (current !== ticket) {
-        authLog("ignored stale auth event", { event, ticket: current });
-        return;
-      }
-      if (user) {
-        if (event === "PASSWORD_RECOVERY") {
-          rememberRecoverySession(session);
-          authLog("password recovery", { userId: user.id });
-          return;
-        }
-        authLog("opening ledger", { userId: user.id });
-        void load(user);
-        return;
-      }
-      if (event === "SIGNED_OUT") {
-        authLog("signed out");
-        setSignedInUser(null);
-        signedOut();
-        return;
-      }
-      if (event === "INITIAL_SESSION" && !hasSignedInUser()) {
-        authLog("no stored session");
-        signedOut();
-        return;
-      }
-      authLog("empty auth event ignored", { event, keptUser: hasSignedInUser() });
-    }, 0);
-  });
+  void load();
 }
 
 function requireReady() {
@@ -554,7 +487,6 @@ export async function setDailyReminder(enabled: boolean) {
 }
 
 export async function markReminded(day: string) {
-  if (!snapshot.userEmail) return;
   const next = { dailyReminder: snapshot.dailyReminder, lastReminded: day };
   try {
     await saveSettings(next);
@@ -568,21 +500,7 @@ export async function updateDisplayName(name: string) {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Add a user name.");
   if (trimmed.length > 40) throw new Error("Keep the user name under 40 characters.");
-  if (!isSupabaseConfigured()) throw new Error(MISSING);
-  const { data, error } = await getSupabase().auth.updateUser({
-    data: { full_name: trimmed, user_name: trimmed },
-  });
-  if (error) throw new Error(error.message);
-  publish({
-    ...snapshot,
-    userName: accountName(data.user) ?? trimmed,
-    userEmail: data.user?.email ?? snapshot.userEmail,
-  });
-}
-
-export async function signOut() {
-  if (!isSupabaseConfigured()) return;
-  setSignedInUser(null);
-  await getSupabase().auth.signOut();
+  window.localStorage.setItem(NAME_KEY, trimmed);
+  publish({ ...snapshot, userName: trimmed });
 }
 

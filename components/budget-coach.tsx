@@ -3,7 +3,6 @@
 import { Sparkles } from "lucide-react";
 import { coachInsight, buildCoachSnapshot } from "@/lib/budget-coach";
 import type { CategoryLimits } from "@/lib/budget-status";
-import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useEffect, useMemo, useState } from "react";
 import type { Expense } from "@/types/expense";
 
@@ -27,15 +26,10 @@ export function BudgetCoach({
   useEffect(() => {
     const controller = new AbortController();
     void (async () => {
-      const headers: HeadersInit = {};
-      if (isSupabaseConfigured()) {
-        const token = (await getSupabase().auth.getSession()).data.session?.access_token;
-        if (token) headers.Authorization = `Bearer ${token}`;
-      }
       return fetch("/api/coach", {
         method: "POST",
         signal: controller.signal,
-        headers: { "Content-Type": "application/json", ...headers },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           budget,
           categoryLimits,

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { AuthScreen } from "@/components/auth-screen";
 import { DailyReminderBanner, ReminderToggle } from "@/components/daily-reminder";
 import { useExpenses } from "@/components/expense-provider";
 import { ThemePicker } from "@/components/theme-picker";
@@ -13,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { budgetBarClass, budgetLevel } from "@/lib/budget-status";
 import { expensesInMonth, ofType, sumAmounts } from "@/lib/expenses";
-import { isSupabaseConfigured } from "@/lib/supabase";
 import { formatMoney, formatMonth, moneyInput, parseMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -26,13 +24,11 @@ const NAV = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { storageWarning, storageMessage, hydrated, userEmail, userName, signOut } = useExpenses();
-  const needsAccount = isSupabaseConfigured() && hydrated && !userEmail && pathname !== "/reset-password";
+  const { storageWarning, storageMessage, hydrated, userName } = useExpenses();
 
   if (!hydrated) {
     return <div className="grid min-h-svh place-items-center text-sm text-muted-foreground">Loading…</div>;
   }
-  if (needsAccount) return <AuthScreen />;
 
   return (
     <div className="min-h-svh">
@@ -48,23 +44,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="mt-auto grid gap-3 px-4 pt-2 pb-4">
           <BudgetControls />
-          {userEmail ? <ReminderToggle /> : null}
+          <ReminderToggle />
           <div className="grid gap-3 border-t border-sidebar-border pt-3">
-            {userName ? (
-              <div className="flex items-center gap-2.5">
-                <Link href="/profile" className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-medium text-primary">
-                  {userName.slice(0, 1).toUpperCase()}
-                </Link>
-                <Link href="/profile" className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {userName}
-                </Link>
-                <button type="button" className="shrink-0 text-xs text-muted-foreground" onClick={() => void signOut()}>
-                  Log out
-                </button>
-              </div>
-            ) : (
-              <Link href="/profile" className="text-sm text-muted-foreground">Profile</Link>
-            )}
+            <div className="flex items-center gap-2.5">
+              <Link href="/profile" className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-medium text-primary">
+                {(userName ?? "A").slice(0, 1).toUpperCase()}
+              </Link>
+              <Link href="/profile" className="min-w-0 flex-1 truncate text-sm font-medium">
+                {userName ?? "Profile"}
+              </Link>
+            </div>
             <ThemePicker />
           </div>
         </div>
@@ -77,9 +66,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/profile" className="max-w-28 truncate text-sm font-medium">
               {userName ?? "Profile"}
             </Link>
-            {userEmail ? (
-              <button type="button" className="text-xs text-muted-foreground" onClick={() => void signOut()}>Log out</button>
-            ) : null}
             <ThemePicker compact />
           </div>
         </header>
@@ -90,9 +76,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {storageMessage ?? "The ledger could not be saved. Try again in a moment."}
               </p>
             ) : null}
-            {userEmail ? <DailyReminderBanner /> : null}
+            <DailyReminderBanner />
             <div className="grid gap-3 md:hidden">
-              {userEmail ? <ReminderToggle /> : null}
+              <ReminderToggle />
               <BudgetControls compact />
             </div>
             {children}

@@ -1,6 +1,6 @@
 import { saveReceiptItems } from "@/lib/price-intel";
 import { DEFAULT_BUDGET } from "@/lib/seed";
-import { authLog, currentUserId, getSupabase } from "@/lib/supabase";
+import { getSupabase, ledgerOwnerId } from "@/lib/supabase";
 import { parseCategoryLimits, type CategoryLimits } from "@/lib/budget-status";
 import { CATEGORIES, DEFAULT_CURRENCY, type Category, type Expense, type ExpenseSource, type LineItem } from "@/types/expense";
 
@@ -77,7 +77,7 @@ function rowToExpense(row: ExpenseRow): Expense | null {
 }
 
 const LOCKED =
-  "Run supabase/migrations/005_user_auth.sql in the Supabase SQL editor, then sign in again.";
+  "Run supabase/migrations/010_open_ledger.sql in the Supabase SQL editor, then reload.";
 const LIMITS_MISSING =
   "Run supabase/migrations/006_category_budgets.sql in the Supabase SQL editor, then reload.";
 
@@ -86,7 +86,7 @@ function friendlyError(message: string): string {
   if (/anonymous sign-ins are disabled/i.test(message)) return LOCKED;
   if (/violates foreign key/i.test(message)) return LOCKED;
   if (/row-level security|permission denied/i.test(message)) {
-    return "The save was blocked because the row did not match the signed-in account. Sign in again, then retry.";
+    return "Run supabase/migrations/010_open_ledger.sql in the Supabase SQL editor, then reload.";
   }
   return message;
 }
@@ -117,7 +117,7 @@ function expenseToRow(expense: Expense, userId: string) {
 export async function fetchRemoteLedger(supabase = getSupabase()): Promise<RemoteLedger> {
   let userId: string | undefined;
   try {
-    userId = await currentUserId();
+    userId = ledgerOwnerId();
   } catch {
     userId = undefined;
   }
@@ -160,11 +160,9 @@ export async function fetchRemoteLedger(supabase = getSupabase()): Promise<Remot
 export async function upsertExpenses(expenses: Expense[]) {
   if (expenses.length === 0) return;
   const supabase = getSupabase();
-  const userId = await currentUserId();
-  authLog("insert expenses", { userId, count: expenses.length });
+  const userId = ledgerOwnerId();
   const { error } = await supabase.from("expenses").upsert(expenses.map((expense) => expenseToRow(expense, userId)));
   if (error) {
-    authLog("expense save blocked, session kept", { message: error.message, userId });
     throw new Error(friendlyError(error.message));
   }
   for (const expense of expenses) {
@@ -181,7 +179,7 @@ export async function deleteRemoteExpense(id: string) {
 export async function saveRemoteBudget(amount: number, categoryLimits: CategoryLimits = {}) {
   const supabase = getSupabase();
   const { error } = await supabase.from("budgets").upsert({
-    user_id: await currentUserId(),
+    user_id: ledgerOwnerId(),
     amount,
     category_limits: categoryLimits,
     updated_at: new Date().toISOString(),
