@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { establishRecoverySession, getSupabase, isSupabaseConfigured, setSignedInUser } from "@/lib/supabase";
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -20,15 +20,26 @@ export function ResetPasswordForm() {
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
+    let cancelled = false;
     const supabase = getSupabase();
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || session) setCanReset(true);
+      if (!session?.user || (event !== "PASSWORD_RECOVERY" && event !== "SIGNED_IN")) return;
+      window.setTimeout(() => {
+        if (cancelled) return;
+        setSignedInUser(session.user.id);
+        setCanReset(true);
+        setReady(true);
+      }, 0);
     });
-    void supabase.auth.getSession().then(({ data: sessionData }) => {
-      if (sessionData.session) setCanReset(true);
+    void establishRecoverySession().then((ok) => {
+      if (cancelled) return;
+      setCanReset(ok);
       setReady(true);
     });
-    return () => data.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -56,15 +67,37 @@ export function ResetPasswordForm() {
           }
           setBusy(true);
           setNotice("");
-          void getSupabase().auth.updateUser({ password }).then(({ error }) => {
-            setBusy(false);
-            if (error) {
-              setNotice(error.message);
-              return;
+          void (async () => {
+            try {
+              const supabase = getSupabase();
+              let readySession = await establishRecoverySession();
+              if (!readySession) {
+                setNotice("This reset link has no session. Request a new link and open it in this browser.");
+                return;
+              }
+              let { error } = await supabase.auth.updateUser({ password });
+              if (error && /session missing/i.test(error.message)) {
+                console.error("[aura-auth] password update missing session", { message: error.message });
+                readySession = await establishRecoverySession();
+                if (readySession) ({ error } = await supabase.auth.updateUser({ password }));
+              }
+              if (error) {
+                console.error("[aura-auth] password update failed", { message: error.message });
+                setNotice(/session missing/i.test(error.message)
+                  ? "This reset link has no session. Request a new link and open it in this browser."
+                  : error.message);
+                return;
+              }
+              toast.success("Password updated.");
+              router.push("/");
+            } catch (caught) {
+              const message = caught instanceof Error ? caught.message : "The password could not be saved.";
+              console.error("[aura-auth] password update threw", { message });
+              setNotice(message);
+            } finally {
+              setBusy(false);
             }
-            toast.success("Password updated.");
-            router.push("/");
-          });
+          })();
         }}
       >
         {!ready ? <p className="text-sm text-muted-foreground">Checking the reset link…</p> : null}
