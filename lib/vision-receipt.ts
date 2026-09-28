@@ -2,7 +2,7 @@ import { todayISO } from "@/lib/format";
 import { DEFAULT_CURRENCY, type Category, type OCRData, type VoucherScan } from "@/types/expense";
 
 export const VISION_SYSTEM_PROMPT =
-  "You are an expert receipt parser. Extract the shop name, line items (with name, qty, price), taxes, and grand total accurately. Handle varying layouts, abbreviations, and multi-line items gracefully. Normalize numeric values to pure numbers (strip currency symbols like 'Ks' or '$' during parsing).";
+  "Read this receipt. JSON only: shopName, date as YYYY-MM-DD, invoiceNo, items[{itemName,quantity,unitPrice,totalPrice}], subtotal, tax, serviceCharge, grandTotal, currency. grandTotal is the final amount due, not the subtotal. Leave tax, service charge, and totals out of items. Numbers only.";
 
 const SUMMARY_ITEM =
   /^(grand\s*)?total(?:\s*(amount|amt))?$|^sub[\s-]*total$|^net(?:t)?\s*(?:amount|amt|total)$|^tax$|^vat$|^service\s*charge$|^rounding$|^round\s*off$/i;
