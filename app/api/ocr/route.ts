@@ -2,46 +2,6 @@ import { VISION_SYSTEM_PROMPT, parseVoucher } from "@/lib/vision-receipt";
 
 export const runtime = "nodejs";
 
-const VOUCHER_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    shopName: { type: "string" },
-    date: { type: "string" },
-    invoiceNo: { type: "string" },
-    items: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          itemName: { type: "string" },
-          quantity: { type: "number" },
-          unitPrice: { type: "number" },
-          totalPrice: { type: "number" },
-        },
-        required: ["itemName", "quantity", "unitPrice", "totalPrice"],
-      },
-    },
-    subtotal: { type: "number" },
-    tax: { type: "number" },
-    serviceCharge: { type: "number" },
-    grandTotal: { type: "number" },
-    currency: { type: "string" },
-  },
-  required: [
-    "shopName",
-    "date",
-    "invoiceNo",
-    "items",
-    "subtotal",
-    "tax",
-    "serviceCharge",
-    "grandTotal",
-    "currency",
-  ],
-} as const;
-
 const KEY_HELP =
   "Set GEMINI_API_KEY in the Netlify site environment to a Google AI Studio key (it starts with AIza or AQ.), then redeploy. Do not paste a Supabase anon key or a login token. An OpenAI key must start with sk-.";
 
@@ -72,10 +32,6 @@ function visionProvider(): { name: "openai" | "gemini"; key: string; model: stri
     cleanKey(process.env.GOOGLE_API_KEY),
   ].filter(Boolean);
   const usable = keys.filter((key) => !isJwt(key));
-  const openai = usable.find(isOpenAIKey);
-  if (openai) {
-    return { name: "openai", key: openai, model: process.env.OPENAI_VISION_MODEL?.trim() || "gpt-4o" };
-  }
   const gemini =
     usable.find(isGeminiKey) ??
     [cleanKey(process.env.GEMINI_API_KEY), cleanKey(process.env.GOOGLE_API_KEY)].find((key) => key && !isJwt(key));
@@ -85,6 +41,10 @@ function visionProvider(): { name: "openai" | "gemini"; key: string; model: stri
       key: gemini,
       model: process.env.GEMINI_VISION_MODEL?.trim() || "gemini-3.5-flash-lite",
     };
+  }
+  const openai = usable.find(isOpenAIKey);
+  if (openai) {
+    return { name: "openai", key: openai, model: process.env.OPENAI_VISION_MODEL?.trim() || "gpt-4o-mini" };
   }
   if (keys.length > 0) return "rejected";
   return null;
@@ -131,23 +91,18 @@ async function readOpenAI(file: File, key: string, model: string): Promise<unkno
     body: JSON.stringify({
       model,
       temperature: 0,
+      max_tokens: 1024,
       messages: [
         { role: "system", content: VISION_SYSTEM_PROMPT },
         {
           role: "user",
           content: [
-            {
-              type: "text",
-              text: "Extract this voucher. Use the grand total as grandTotal. Do not put totals, tax, or service charge in items. Reply with JSON only.",
-            },
-            { type: "image_url", image_url: { url: `data:${mime};base64,${bytes.toString("base64")}` } },
+            { type: "text", text: "Receipt." },
+            { type: "image_url", image_url: { url: `data:${mime};base64,${bytes.toString("base64")}`, detail: "low" } },
           ],
         },
       ],
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: "voucher", strict: true, schema: VOUCHER_SCHEMA },
-      },
+      response_format: { type: "json_object" },
     }),
   });
   if (!response.ok) throw new Error(await providerError(response));
@@ -168,47 +123,53 @@ async function readOpenAI(file: File, key: string, model: string): Promise<unkno
 async function readGemini(file: File, key: string, model: string): Promise<unknown> {
   const bytes = Buffer.from(await file.arrayBuffer());
   const mime = file.type || "image/jpeg";
-  const models = [...new Set([model, "gemini-3.5-flash-lite"])];
+  const image = bytes.toString("base64");
   let lastError = "The vision model could not read this image.";
-  for (const candidate of models) {
+  for (const fast of [true, false]) {
+    const generationConfig: Record<string, unknown> = {
+      maxOutputTokens: 1024,
+      responseMimeType: "application/json",
+    };
+    if (fast) {
+      generationConfig.thinkingConfig = { thinkingLevel: "MINIMAL" };
+      generationConfig.mediaResolution = "MEDIA_RESOLUTION_LOW";
+    }
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: VISION_SYSTEM_PROMPT }] },
-          contents: [
-            {
-              parts: [
-                {
-                  text: "Extract this voucher as JSON with shopName, date as YYYY-MM-DD, invoiceNo, items[{itemName,quantity,unitPrice,totalPrice}], subtotal, tax, serviceCharge, grandTotal, currency. grandTotal is the Grand Total line, not the subtotal. Do not put totals, tax, or service charge in items. JSON only.",
-                },
-                { inlineData: { mimeType: mime, data: bytes.toString("base64") } },
-              ],
-            },
-          ],
-          generationConfig: { temperature: 0, responseMimeType: "application/json" },
+          contents: [{ parts: [{ text: "Receipt." }, { inlineData: { mimeType: mime, data: image } }] }],
+          generationConfig,
         }),
       },
     );
-    if (!response.ok) {
-      lastError = await providerError(response);
-      const busy = response.status === 404 || response.status === 429 || response.status === 503 || /high demand|unavailable|overloaded|try again/i.test(lastError);
-      if (busy) continue;
-      throw new Error(lastError);
+    if (response.ok) {
+      const payload: unknown = await response.json();
+      const parts =
+        typeof payload === "object" && payload !== null && "candidates" in payload
+          ? (
+              payload as {
+                candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
+              }
+            ).candidates?.[0]?.content?.parts
+          : [];
+      const text = (parts ?? [])
+        .filter((part) => part.thought !== true)
+        .map((part) => part.text ?? "")
+        .filter(Boolean)
+        .join("\n");
+      if (typeof text !== "string" || !text.trim()) {
+        throw new Error("The vision model returned an empty reply.");
+      }
+      return parseModelJson(text);
     }
-    const payload: unknown = await response.json();
-    const parts =
-      typeof payload === "object" && payload !== null && "candidates" in payload
-        ? (payload as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }).candidates?.[0]
-            ?.content?.parts
-        : [];
-    const text = (parts ?? []).map((part) => part.text ?? "").filter(Boolean).join("\n");
-    if (typeof text !== "string" || !text.trim()) {
-      throw new Error("The vision model returned an empty reply.");
-    }
-    return parseModelJson(text);
+    lastError = await providerError(response);
+    const unsupported = response.status === 400 && /thinking|mediaResolution|unknown|invalid/i.test(lastError);
+    if (fast && unsupported) continue;
+    throw new Error(lastError);
   }
   throw new Error(lastError);
 }
