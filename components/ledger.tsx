@@ -45,7 +45,7 @@ export function Ledger() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 sm:gap-6">
       <PageHeader
         eyebrow={formatMonth()}
         title="Ledger"
@@ -89,30 +89,32 @@ export function Ledger() {
             </SelectContent>
           </Select>
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="ledger-from">From</Label>
-          <Input
-            id="ledger-from"
-            type="date"
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-            className="h-11"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="ledger-to">To</Label>
-          <Input
-            id="ledger-to"
-            type="date"
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-            className="h-11"
-          />
+        <div className="grid grid-cols-2 gap-3 lg:contents">
+          <div className="grid gap-2">
+            <Label htmlFor="ledger-from">From</Label>
+            <Input
+              id="ledger-from"
+              type="date"
+              value={from}
+              onChange={(event) => setFrom(event.target.value)}
+              className="h-11"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="ledger-to">To</Label>
+            <Input
+              id="ledger-to"
+              type="date"
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+              className="h-11"
+            />
+          </div>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs leading-5 text-muted-foreground sm:text-sm">
           {rangeInvalid
             ? "The start date is after the end date."
             : `Showing ${filtered.length} of ${expenses.length} · +${formatMoney(incomeTotal)} in · −${formatMoney(expenseTotal)} out`}

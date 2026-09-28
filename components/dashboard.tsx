@@ -43,7 +43,7 @@ export function Dashboard() {
   const description = monthBudgetLine(month, monthRows.length, spent, budget);
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-8">
+    <div className="flex flex-col gap-5 sm:gap-8">
       <BudgetCoach expenses={monthRows} budget={budget} categoryLimits={categoryLimits} />
       <PageHeader
         eyebrow={formatLongDate()}
@@ -56,7 +56,8 @@ export function Dashboard() {
             <Button asChild variant="outline" className="h-10">
               <Link href="/scanner">
                 <ScanLine />
-                Scan receipt
+                <span className="sm:hidden">Scan</span>
+                <span className="hidden sm:inline">Scan receipt</span>
               </Link>
             </Button>
           </>
@@ -199,7 +200,7 @@ function StatCard({
     <Card className={href ? "h-full transition-colors hover:bg-muted/50" : "h-full"}>
       <CardContent className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+          <p className="text-[11px] font-medium text-muted-foreground sm:text-xs sm:tracking-[0.14em] sm:uppercase">
             {label}
           </p>
           <span
@@ -215,13 +216,13 @@ function StatCard({
           </span>
         </div>
         <p
-          className={`font-mono text-lg leading-tight tracking-tight break-words tabular-nums sm:text-2xl ${
+          className={`font-mono text-sm leading-tight tracking-tight break-words tabular-nums sm:text-2xl ${
             tone === "warning" ? "text-destructive" : tone === "positive" ? "text-emerald-600 dark:text-emerald-400" : ""
           }`}
         >
           {value}
         </p>
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p className="line-clamp-2 text-[11px] leading-4 text-muted-foreground sm:text-xs">{hint}</p>
         {typeof progress === "number" ? (
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
