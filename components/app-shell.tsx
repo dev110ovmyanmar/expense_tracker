@@ -255,7 +255,7 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
         />
       </div>
       <details className="mt-2">
-        <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground">Edit budget</summary>
+        <summary className="cursor-pointer list-none text-xs font-medium text-primary">Edit budget</summary>
         <div className="grid gap-3 pt-3">
           <div className="grid gap-2">
             <Label htmlFor="budget-mobile">Monthly budget</Label>
