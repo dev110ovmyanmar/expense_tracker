@@ -42,12 +42,43 @@ const VOUCHER_SCHEMA = {
   ],
 } as const;
 
-function visionProvider(): { name: "openai" | "gemini"; key: string; model: string } | null {
-  const openai = process.env.OPENAI_API_KEY?.trim();
+const KEY_HELP =
+  "Set GEMINI_API_KEY in the Netlify site environment to a Google AI Studio key (it starts with AIza or AQ.), then redeploy. Do not paste a Supabase anon key or a login token. An OpenAI key must start with sk-.";
+
+function cleanKey(value: string | undefined): string {
+  return (value ?? "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/^Bearer\s+/i, "")
+    .trim();
+}
+
+function isJwt(key: string): boolean {
+  return /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key);
+}
+
+function isGeminiKey(key: string): boolean {
+  return key.startsWith("AIza") || key.startsWith("AQ.");
+}
+
+function isOpenAIKey(key: string): boolean {
+  return key.startsWith("sk-");
+}
+
+function visionProvider(): { name: "openai" | "gemini"; key: string; model: string } | "rejected" | null {
+  const keys = [
+    cleanKey(process.env.OPENAI_API_KEY),
+    cleanKey(process.env.GEMINI_API_KEY),
+    cleanKey(process.env.GOOGLE_API_KEY),
+  ].filter(Boolean);
+  const usable = keys.filter((key) => !isJwt(key));
+  const openai = usable.find(isOpenAIKey);
   if (openai) {
     return { name: "openai", key: openai, model: process.env.OPENAI_VISION_MODEL?.trim() || "gpt-4o" };
   }
-  const gemini = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
+  const gemini =
+    usable.find(isGeminiKey) ??
+    [cleanKey(process.env.GEMINI_API_KEY), cleanKey(process.env.GOOGLE_API_KEY)].find((key) => key && !isJwt(key));
   if (gemini) {
     return {
       name: "gemini",
@@ -55,6 +86,7 @@ function visionProvider(): { name: "openai" | "gemini"; key: string; model: stri
       model: process.env.GEMINI_VISION_MODEL?.trim() || "gemini-3.5-flash-lite",
     };
   }
+  if (keys.length > 0) return "rejected";
   return null;
 }
 
@@ -188,11 +220,14 @@ export async function POST(request: Request) {
     return Response.json({ voucher: null, error: "Upload a voucher image." }, { status: 400 });
   }
   const provider = visionProvider();
+  if (provider === "rejected") {
+    return Response.json({ voucher: null, error: KEY_HELP }, { status: 503 });
+  }
   if (!provider) {
     return Response.json(
       {
         voucher: null,
-        error: "Set OPENAI_API_KEY or GEMINI_API_KEY to read voucher photos.",
+        error: "Set GEMINI_API_KEY or OPENAI_API_KEY on the server to read voucher photos.",
       },
       { status: 503 },
     );
@@ -209,6 +244,7 @@ export async function POST(request: Request) {
     return Response.json({ voucher });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The vision model could not read this image.";
-    return Response.json({ voucher: null, error: message });
+    const issuer = /not from a valid issuer|unauthenticated|invalid authentication|api key/i.test(message);
+    return Response.json({ voucher: null, error: issuer ? KEY_HELP : message });
   }
 }

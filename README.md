@@ -23,7 +23,9 @@ Open [http://localhost:3000](http://localhost:3000).
 - Amounts are Myanmar kyat and display with thousand separators, such as `1,650 Ks`.
 - Light and dark mode follow the system, and can be switched from the sidebar.
 
-Photos are sent to a vision model (GPT-4o when `OPENAI_API_KEY` is set, otherwise Gemini when `GEMINI_API_KEY` or `GOOGLE_API_KEY` is set). The model must return the shop, items, and grand total as JSON. Without a key, a photo opens an empty form instead of crashing. Images are not stored with the expense.
+Photos are sent to a vision model (GPT-4o when `OPENAI_API_KEY` starts with `sk-`, otherwise Gemini when `GEMINI_API_KEY` or `GOOGLE_API_KEY` starts with `AIza` or `AQ.`). The model must return the shop, items, and grand total as JSON. Without a key, a photo opens an empty form instead of crashing. Images are not stored with the expense.
+
+On Netlify, add `GEMINI_API_KEY` under Site configuration → Environment variables, then redeploy. A login token or the Supabase anon key in `OPENAI_API_KEY` is ignored. `.env.local` is not uploaded with the site.
 
 ## Scripts
 

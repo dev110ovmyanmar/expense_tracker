@@ -289,12 +289,14 @@ export function OCRScanner() {
               <div>
                 <CardTitle>Extracted fields</CardTitle>
                 <CardDescription>
-                  {ocr.totalFound && confidence >= 70
-                    ? `${ocr.vendor} is filled from the voucher. The amount is the grand total. Check each item before you add it.`
-                    : "The vision read is incomplete. Type the shop and the grand total in kyat."}
+                  {ocr.warning
+                    ? ocr.warning
+                    : ocr.totalFound && confidence >= 70
+                      ? `${ocr.vendor} is filled from the voucher. The amount is the grand total. Check each item before you add it.`
+                      : "The vision read is incomplete. Type the shop and the grand total in kyat."}
                 </CardDescription>
               </div>
-              <Badge variant="secondary">{confidence}% match</Badge>
+              <Badge variant="secondary">{ocr.warning && !ocr.totalFound ? "Not read" : `${confidence}% match`}</Badge>
             </div>
           </CardHeader>
           <CardContent>
