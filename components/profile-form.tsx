@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { useExpenses } from "@/components/expense-provider";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +20,7 @@ import { PageSkeleton } from "@/components/ui/skeleton";
 
 export function ProfileForm() {
   const { userName, updateDisplayName, clearLedger, saving, hydrated } = useExpenses();
+  const { configured, signOut } = useAuth();
   const [draft, setDraft] = useState<string | null>(null);
   const name = draft ?? userName ?? "";
   const [busy, setBusy] = useState(false);
@@ -74,6 +76,17 @@ export function ProfileForm() {
           Clear my data
         </Button>
       </section>
+      {configured ? (
+        <section className="grid gap-3 rounded-xl bg-card px-4 py-4 ring-1 ring-foreground/10">
+          <div className="grid gap-1">
+            <h2 className="font-heading text-base">Log out</h2>
+            <p className="text-sm text-muted-foreground">Sign out of this account on this device.</p>
+          </div>
+          <Button type="button" variant="outline" className="min-h-11" onClick={() => void signOut()}>
+            Log out
+          </Button>
+        </section>
+      ) : null}
       <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
         <DialogContent>
           <DialogHeader>

@@ -56,11 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link href="/profile" className="min-w-0 flex-1 truncate text-sm font-medium">
                 {userName ?? "Profile"}
               </Link>
-                {configured ? (
-                <button type="button" className="min-h-11 shrink-0 px-1 text-xs text-muted-foreground transition-colors hover:text-foreground" onClick={() => void signOut()}>
-                  Log out
-                </button>
-              ) : null}
+              {configured ? <LogOutButton onClick={() => void signOut()} /> : null}
             </div>
             <ThemePicker />
           </div>
@@ -70,7 +66,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="md:pl-64">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 md:hidden">
           <Brand compact />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {configured ? <LogOutButton onClick={() => void signOut()} /> : null}
             <ThemePicker compact />
             <Link
               href="/profile"
@@ -124,6 +121,18 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </div>
     </div>
+  );
+}
+
+function LogOutButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="min-h-11 shrink-0 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+    >
+      Log out
+    </button>
   );
 }
 
