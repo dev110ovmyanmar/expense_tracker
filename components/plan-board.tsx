@@ -4,12 +4,13 @@ import { FixedBills } from "@/components/fixed-bills";
 import { PageHeader } from "@/components/page-header";
 import { SavingsGoals } from "@/components/savings-goals";
 import { useExpenses } from "@/components/expense-provider";
+import { PageSkeleton } from "@/components/ui/skeleton";
 import { ofType, sumAmounts, expensesInMonth } from "@/lib/expenses";
 import { roundMoney } from "@/lib/format";
 
 export function PlanBoard() {
   const { expenses, hydrated, planningMessage } = useExpenses();
-  if (!hydrated) return <div className="h-80 animate-pulse rounded-xl bg-muted" />;
+  if (!hydrated) return <PageSkeleton />;
   const month = expensesInMonth(expenses);
   const income = sumAmounts(ofType(month, "income"));
   const spent = sumAmounts(ofType(month, "expense"));

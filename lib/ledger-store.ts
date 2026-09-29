@@ -170,99 +170,71 @@ export function getServerLedgerSnapshot(): LedgerSnapshot {
   return SERVER_SNAPSHOT;
 }
 
-export async function addExpense(input: ExpenseInput): Promise<Expense> {
+async function commitChange(next: LedgerSnapshot, work: () => Promise<void>, fallback: string) {
   requireReady();
-  const now = new Date().toISOString();
-  const expense: Expense = { ...input, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
-  publish({ ...snapshot, saving: true });
+  const previous = snapshot;
+  publish({ ...next, saving: true, storageWarning: false, storageMessage: null });
   try {
-    await upsertExpenses([expense]);
-    publish({
-      ...snapshot,
-      expenses: sortExpenses([expense, ...snapshot.expenses]),
-      saving: false,
-      storageWarning: false,
-      storageMessage: null,
-    });
-    return expense;
+    await work();
+    publish({ ...snapshot, saving: false, storageWarning: false, storageMessage: null });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "The expense could not be saved.";
-    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
+    const message = error instanceof Error ? error.message : fallback;
+    publish({ ...previous, saving: false, storageWarning: true, storageMessage: message });
     throw new Error(message);
   }
+}
+
+export async function addExpense(input: ExpenseInput): Promise<Expense> {
+  const now = new Date().toISOString();
+  const expense: Expense = { ...input, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
+  await commitChange(
+    { ...snapshot, expenses: sortExpenses([expense, ...snapshot.expenses]) },
+    () => upsertExpenses([expense]),
+    "The expense could not be saved.",
+  );
+  return expense;
 }
 
 export async function updateExpense(id: string, input: ExpenseInput) {
-  requireReady();
   const current = snapshot.expenses.find((expense) => expense.id === id);
   if (!current) throw new Error("That expense is no longer in the ledger.");
   const updated: Expense = { ...current, ...input, updatedAt: new Date().toISOString() };
-  publish({ ...snapshot, saving: true });
-  try {
-    await upsertExpenses([updated]);
-    publish({
+  await commitChange(
+    {
       ...snapshot,
       expenses: sortExpenses(snapshot.expenses.map((expense) => (expense.id === id ? updated : expense))),
-      saving: false,
-      storageWarning: false,
-      storageMessage: null,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The expense could not be updated.";
-    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
-    throw new Error(message);
-  }
+    },
+    () => upsertExpenses([updated]),
+    "The expense could not be updated.",
+  );
 }
 
 export async function deleteExpense(id: string) {
-  requireReady();
-  publish({ ...snapshot, saving: true });
-  try {
-    await deleteRemoteExpense(id);
-    publish({
-      ...snapshot,
-      expenses: snapshot.expenses.filter((expense) => expense.id !== id),
-      saving: false,
-      storageWarning: false,
-      storageMessage: null,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The expense could not be deleted.";
-    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
-    throw new Error(message);
-  }
+  await commitChange(
+    { ...snapshot, expenses: snapshot.expenses.filter((expense) => expense.id !== id) },
+    () => deleteRemoteExpense(id),
+    "The expense could not be deleted.",
+  );
 }
 
 export async function setBudget(amount: number) {
   if (!Number.isFinite(amount) || amount < 0) return;
-  requireReady();
   const budget = Math.round(amount * 100) / 100;
-  publish({ ...snapshot, saving: true });
-  try {
-    await saveRemoteBudget(budget, snapshot.categoryLimits);
-    publish({ ...snapshot, budget, saving: false, storageWarning: false, storageMessage: null });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The budget could not be saved.";
-    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
-    throw new Error(message);
-  }
+  const limits = snapshot.categoryLimits;
+  await commitChange({ ...snapshot, budget }, () => saveRemoteBudget(budget, limits), "The budget could not be saved.");
 }
 
 export async function setCategoryLimit(category: Category, amount: number) {
   if (!isExpenseCategory(category)) return;
-  requireReady();
   const categoryLimits = { ...snapshot.categoryLimits };
   if (!Number.isFinite(amount) || amount <= 0) delete categoryLimits[category];
   else categoryLimits[category] = Math.round(amount * 100) / 100;
-  publish({ ...snapshot, saving: true });
-  try {
-    await saveRemoteBudget(snapshot.budget, categoryLimits);
-    publish({ ...snapshot, categoryLimits, saving: false, storageWarning: false, storageMessage: null });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The category limit could not be saved.";
-    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
-    throw new Error(message);
-  }
+  const budget = snapshot.budget;
+  await commitChange(
+    { ...snapshot, categoryLimits },
+    () => saveRemoteBudget(budget, categoryLimits),
+    "The category limit could not be saved.",
+  );
 }
 
 export async function addDailyBill(input: { title: string; amount: number; category: Category; date: string; autoDaily?: boolean }) {
@@ -295,39 +267,34 @@ export async function addDailyBill(input: { title: string; amount: number; categ
     date: input.date,
     expenseId,
   };
-  publish({ ...snapshot, saving: true });
-  try {
-    await upsertExpenses([expense]);
-    await insertDailyBill(bill);
-    const recurring = input.autoDaily
-      ? recurringFromInput(crypto.randomUUID(), {
-          name: title,
-          amount,
-          category: input.category,
-          type: "expense",
-          frequency: "daily",
-          nextDue: advanceDate(input.date, "daily"),
-          autoLog: true,
-          active: true,
-        }, now, now)
-      : null;
-    if (recurring) await saveRecurring(recurring);
-    publish({
+  const recurring = input.autoDaily
+    ? recurringFromInput(crypto.randomUUID(), {
+        name: title,
+        amount,
+        category: input.category,
+        type: "expense",
+        frequency: "daily",
+        nextDue: advanceDate(input.date, "daily"),
+        autoLog: true,
+        active: true,
+      }, now, now)
+    : null;
+  await commitChange(
+    {
       ...snapshot,
       expenses: sortExpenses([expense, ...snapshot.expenses]),
       dailyBills: [bill, ...snapshot.dailyBills],
       recurring: recurring
         ? [...snapshot.recurring, recurring].sort((a, b) => a.nextDue.localeCompare(b.nextDue))
         : snapshot.recurring,
-      saving: false,
-      storageWarning: false,
-      storageMessage: null,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The bill could not be saved.";
-    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
-    throw new Error(message);
-  }
+    },
+    async () => {
+      await upsertExpenses([expense]);
+      await insertDailyBill(bill);
+      if (recurring) await saveRecurring(recurring);
+    },
+    "The bill could not be saved.",
+  );
 }
 
 function chargesFor(item: RecurringItem, dates: string[]): Expense[] {
@@ -372,27 +339,17 @@ async function applyAutoLog(items: RecurringItem[]) {
   return { expenses: created, recurring };
 }
 
-async function writePlanning<T>(work: () => Promise<T>, fallback: string): Promise<T> {
-  requireReady();
-  publish({ ...snapshot, saving: true });
-  try {
-    const result = await work();
-    publish({ ...snapshot, saving: false, storageWarning: false, storageMessage: null });
-    return result;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : fallback;
-    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
-    throw new Error(message);
-  }
-}
-
 export async function addRecurring(input: RecurringInput) {
   const now = new Date().toISOString();
   const item = recurringFromInput(crypto.randomUUID(), input, now, now);
-  await writePlanning(async () => {
-    await saveRecurring(item);
-    snapshot = { ...snapshot, recurring: [...snapshot.recurring, item].sort((a, b) => a.nextDue.localeCompare(b.nextDue)) };
-  }, "The bill could not be saved.");
+  await commitChange(
+    {
+      ...snapshot,
+      recurring: [...snapshot.recurring, item].sort((a, b) => a.nextDue.localeCompare(b.nextDue)),
+    },
+    () => saveRecurring(item),
+    "The bill could not be saved.",
+  );
   return item;
 }
 
@@ -400,22 +357,24 @@ export async function updateRecurring(id: string, input: RecurringInput) {
   const current = snapshot.recurring.find((item) => item.id === id);
   if (!current) throw new Error("That bill is no longer on the schedule.");
   const updated = { ...current, ...input, updatedAt: new Date().toISOString() };
-  await writePlanning(async () => {
-    await saveRecurring(updated);
-    snapshot = {
+  await commitChange(
+    {
       ...snapshot,
       recurring: snapshot.recurring
         .map((item) => (item.id === id ? updated : item))
         .sort((a, b) => a.nextDue.localeCompare(b.nextDue)),
-    };
-  }, "The bill could not be updated.");
+    },
+    () => saveRecurring(updated),
+    "The bill could not be updated.",
+  );
 }
 
 export async function removeRecurring(id: string) {
-  await writePlanning(async () => {
-    await deleteRecurring(id);
-    snapshot = { ...snapshot, recurring: snapshot.recurring.filter((item) => item.id !== id) };
-  }, "The bill could not be removed.");
+  await commitChange(
+    { ...snapshot, recurring: snapshot.recurring.filter((item) => item.id !== id) },
+    () => deleteRecurring(id),
+    "The bill could not be removed.",
+  );
 }
 
 export async function logRecurring(id: string) {
@@ -425,24 +384,28 @@ export async function logRecurring(id: string) {
   if (due.dates.length === 0) return;
   const expenses = chargesFor(item, due.dates);
   const updated = { ...item, nextDue: due.nextDue, updatedAt: new Date().toISOString() };
-  await writePlanning(async () => {
-    await upsertExpenses(expenses);
-    await saveRecurring(updated);
-    snapshot = {
+  await commitChange(
+    {
       ...snapshot,
       expenses: sortExpenses([...expenses, ...snapshot.expenses]),
       recurring: snapshot.recurring.map((entry) => (entry.id === id ? updated : entry)),
-    };
-  }, "The bill could not be logged.");
+    },
+    async () => {
+      await upsertExpenses(expenses);
+      await saveRecurring(updated);
+    },
+    "The bill could not be logged.",
+  );
 }
 
 export async function addGoal(input: SavingsGoalInput) {
   const now = new Date().toISOString();
   const goal = goalFromInput(crypto.randomUUID(), input, now, now, null);
-  await writePlanning(async () => {
-    await saveGoal(goal);
-    snapshot = { ...snapshot, goals: [...snapshot.goals, goal] };
-  }, "The goal could not be saved.");
+  await commitChange(
+    { ...snapshot, goals: [...snapshot.goals, goal] },
+    () => saveGoal(goal),
+    "The goal could not be saved.",
+  );
   return goal;
 }
 
@@ -450,17 +413,19 @@ export async function updateGoal(id: string, input: SavingsGoalInput) {
   const current = snapshot.goals.find((goal) => goal.id === id);
   if (!current) throw new Error("That goal is no longer here.");
   const updated = { ...current, ...input, updatedAt: new Date().toISOString() };
-  await writePlanning(async () => {
-    await saveGoal(updated);
-    snapshot = { ...snapshot, goals: snapshot.goals.map((goal) => (goal.id === id ? updated : goal)) };
-  }, "The goal could not be updated.");
+  await commitChange(
+    { ...snapshot, goals: snapshot.goals.map((goal) => (goal.id === id ? updated : goal)) },
+    () => saveGoal(updated),
+    "The goal could not be updated.",
+  );
 }
 
 export async function removeGoal(id: string) {
-  await writePlanning(async () => {
-    await deleteGoal(id);
-    snapshot = { ...snapshot, goals: snapshot.goals.filter((goal) => goal.id !== id) };
-  }, "The goal could not be removed.");
+  await commitChange(
+    { ...snapshot, goals: snapshot.goals.filter((goal) => goal.id !== id) },
+    () => deleteGoal(id),
+    "The goal could not be removed.",
+  );
 }
 
 export async function addToGoal(id: string, amount: number, monthly = false) {
@@ -474,24 +439,16 @@ export async function addToGoal(id: string, amount: number, monthly = false) {
     lastAllocated: monthly ? month : goal.lastAllocated,
     updatedAt: new Date().toISOString(),
   };
-  await writePlanning(async () => {
-    await saveGoal(updated);
-    snapshot = { ...snapshot, goals: snapshot.goals.map((entry) => (entry.id === id ? updated : entry)) };
-  }, "The savings could not be added.");
+  await commitChange(
+    { ...snapshot, goals: snapshot.goals.map((entry) => (entry.id === id ? updated : entry)) },
+    () => saveGoal(updated),
+    "The savings could not be added.",
+  );
 }
 
 export async function setDailyReminder(enabled: boolean) {
-  requireReady();
   const next = { dailyReminder: enabled, lastReminded: enabled ? snapshot.lastReminded : null };
-  publish({ ...snapshot, saving: true, dailyReminder: enabled });
-  try {
-    await saveSettings(next);
-    publish({ ...snapshot, ...next, saving: false, storageWarning: false, storageMessage: null });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The reminder could not be saved.";
-    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
-    throw new Error(message);
-  }
+  await commitChange({ ...snapshot, ...next }, () => saveSettings(next), "The reminder could not be saved.");
 }
 
 export async function markReminded(day: string) {
@@ -505,11 +462,8 @@ export async function markReminded(day: string) {
 }
 
 export async function clearLedger() {
-  requireReady();
-  publish({ ...snapshot, saving: true });
-  try {
-    await clearRemoteLedger();
-    publish({
+  await commitChange(
+    {
       ...snapshot,
       expenses: [],
       budget: DEFAULT_BUDGET,
@@ -517,34 +471,37 @@ export async function clearLedger() {
       recurring: [],
       goals: [],
       dailyBills: [],
-      saving: false,
-      storageWarning: false,
-      storageMessage: null,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The ledger could not be cleared.";
-    publish({ ...snapshot, saving: false, storageWarning: true, storageMessage: message });
-    throw new Error(message);
-  }
+    },
+    () => clearRemoteLedger(),
+    "The ledger could not be cleared.",
+  );
 }
 
 export async function updateDisplayName(name: string) {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Add a user name.");
   if (trimmed.length > 40) throw new Error("Keep the user name under 40 characters.");
-  const supabase = getSupabase();
-  const { error } = await supabase.auth.updateUser({ data: { full_name: trimmed, user_name: trimmed } });
-  if (error) throw new Error(error.message);
-  const userId = ledgerOwnerId();
-  const updatedAt = new Date().toISOString();
-  const owned = await supabase
-    .from("profiles")
-    .update({ full_name: trimmed, user_id: userId, updated_at: updatedAt })
-    .eq("id", userId)
-    .eq("user_id", userId);
-  if (owned.error && /user_id|schema cache|column/i.test(owned.error.message)) {
-    await supabase.from("profiles").update({ full_name: trimmed, updated_at: updatedAt }).eq("id", userId);
+  const previous = snapshot.userName;
+  publish({ ...snapshot, userName: trimmed, saving: true, storageWarning: false, storageMessage: null });
+  try {
+    const supabase = getSupabase();
+    const { error } = await supabase.auth.updateUser({ data: { full_name: trimmed, user_name: trimmed } });
+    if (error) throw new Error(error.message);
+    const userId = ledgerOwnerId();
+    const updatedAt = new Date().toISOString();
+    const owned = await supabase
+      .from("profiles")
+      .update({ full_name: trimmed, user_id: userId, updated_at: updatedAt })
+      .eq("id", userId)
+      .eq("user_id", userId);
+    if (owned.error && /user_id|schema cache|column/i.test(owned.error.message)) {
+      await supabase.from("profiles").update({ full_name: trimmed, updated_at: updatedAt }).eq("id", userId);
+    }
+    publish({ ...snapshot, userName: trimmed, saving: false });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The name could not be saved.";
+    publish({ ...snapshot, userName: previous, saving: false, storageWarning: true, storageMessage: message });
+    throw new Error(message);
   }
-  publish({ ...snapshot, userName: trimmed });
 }
 

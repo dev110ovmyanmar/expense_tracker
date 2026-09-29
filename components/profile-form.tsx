@@ -15,13 +15,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageSkeleton } from "@/components/ui/skeleton";
 
 export function ProfileForm() {
-  const { userName, updateDisplayName, clearLedger, saving } = useExpenses();
+  const { userName, updateDisplayName, clearLedger, saving, hydrated } = useExpenses();
   const [draft, setDraft] = useState<string | null>(null);
   const name = draft ?? userName ?? "";
   const [busy, setBusy] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+
+  if (!hydrated) return <PageSkeleton />;
 
   return (
     <div className="grid max-w-md gap-6">

@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { CategoryDot } from "@/components/category-icon";
 import { AddExpenseButton } from "@/components/ExpenseForm";
 import { useExpenses } from "@/components/expense-provider";
@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/page-header";
 import { TransactionList } from "@/components/transaction-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageSkeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -28,21 +29,21 @@ export function Ledger() {
   const [from, setFrom] = useState(startOfMonthISO);
   const [to, setTo] = useState(todayISO);
 
+  const deferredQuery = useDeferredValue(query);
+  const searching = deferredQuery !== query;
   const rangeInvalid = Boolean(from && to && from > to);
   const filtered = useMemo(
     () =>
       rangeInvalid
         ? []
-        : filterExpenses(expenses, { query, category, from, to }),
-    [expenses, query, category, from, to, rangeInvalid],
+        : filterExpenses(expenses, { query: deferredQuery, category, from, to }),
+    [expenses, deferredQuery, category, from, to, rangeInvalid],
   );
   const incomeTotal = sumAmounts(ofType(filtered, "income"));
   const expenseTotal = sumAmounts(ofType(filtered, "expense"));
   const monthDefault = from === startOfMonthISO() && to === todayISO() && !query && category === "all";
 
-  if (!hydrated) {
-    return <div className="h-80 animate-pulse rounded-xl bg-muted" />;
-  }
+  if (!hydrated) return <PageSkeleton />;
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
@@ -53,7 +54,7 @@ export function Ledger() {
         actions={<AddExpenseButton className="h-10" />}
       />
 
-      <div className="grid gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:p-4 lg:grid-cols-[1fr_180px_160px_160px]">
+      <div className="grid gap-3 rounded-xl bg-card p-3 shadow-[0_10px_30px_-18px_oklch(0_0_0/0.55)] ring-1 ring-foreground/10 sm:p-4 lg:grid-cols-[1fr_180px_160px_160px]">
         <div className="grid gap-2">
           <Label htmlFor="ledger-search">Search</Label>
           <div className="relative">
@@ -135,7 +136,7 @@ export function Ledger() {
         </Button>
       </div>
 
-      <div className="rounded-xl bg-card px-3 py-2 ring-1 ring-foreground/10 sm:px-5 sm:py-4">
+      <div className={`rounded-xl bg-card px-3 py-2 shadow-[0_10px_30px_-18px_oklch(0_0_0/0.55)] ring-1 ring-foreground/10 transition-opacity duration-200 sm:px-5 sm:py-4 ${searching ? "opacity-60" : ""}`}>
         <TransactionList
           expenses={filtered}
           emptyTitle={expenses.length === 0 ? "The ledger is empty" : "Nothing matches"}

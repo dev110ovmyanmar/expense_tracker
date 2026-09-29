@@ -53,7 +53,7 @@ export function TransactionList({
             <button
               type="button"
               onClick={() => setViewing(expense)}
-              className="flex min-h-14 w-full items-center gap-3 rounded-lg py-2.5 text-left"
+              className="flex min-h-14 w-full items-center gap-3 rounded-lg py-2.5 text-left transition-colors duration-200 hover:bg-muted/50 active:bg-muted"
             >
               <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted">
                 <CategoryIcon category={expense.category} className="size-4" />

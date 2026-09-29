@@ -13,6 +13,7 @@ import { SpendingChart } from "@/components/SpendingChart";
 import { TransactionList } from "@/components/transaction-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageSkeleton } from "@/components/ui/skeleton";
 import { budgetBarClass, budgetLevel } from "@/lib/budget-status";
 import { expensesInMonth, ofType, sortExpenses, sumAmounts, totalsByCategory } from "@/lib/expenses";
 import { formatLongDate, formatMoney, formatMonth, greeting, roundMoney } from "@/lib/format";
@@ -21,15 +22,7 @@ import type { LucideIcon } from "lucide-react";
 export function Dashboard() {
   const { expenses, budget, categoryLimits, hydrated, recurring, goals, dailyBills, setCategoryLimit } = useExpenses();
 
-  if (!hydrated) {
-    return (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="h-32 animate-pulse rounded-xl bg-muted" />
-        ))}
-      </div>
-    );
-  }
+  if (!hydrated) return <PageSkeleton />;
 
   const monthRows = sortExpenses(expensesInMonth(expenses));
   const monthExpenses = ofType(monthRows, "expense");
@@ -112,13 +105,13 @@ export function Dashboard() {
       />
 
       <section className="grid gap-2 sm:grid-cols-2">
-        <Link href="/plan#bills" className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
+        <Link href="/plan#bills" className="rounded-xl bg-card px-3 py-3 shadow-[0_10px_30px_-18px_oklch(0_0_0/0.55)] ring-1 ring-foreground/10 transition-colors duration-200 hover:bg-muted/40">
           <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Fixed bills</p>
           <p className="mt-1 text-sm">
             {recurring.length === 0 ? "None scheduled" : `${recurring.length} scheduled`}
           </p>
         </Link>
-        <Link href="/plan#goals" className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
+        <Link href="/plan#goals" className="rounded-xl bg-card px-3 py-3 shadow-[0_10px_30px_-18px_oklch(0_0_0/0.55)] ring-1 ring-foreground/10 transition-colors duration-200 hover:bg-muted/40">
           <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Savings goals</p>
           <p className="mt-1 text-sm">
             {goals.length === 0 ? "None yet" : `${goals.length} in progress`}
@@ -226,7 +219,7 @@ function StatCard({
         {typeof progress === "number" ? (
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
-              className={`h-full rounded-full ${budgetBarClass(level ?? (tone === "warning" ? "over" : "ok"))}`}
+              className={`aura-bar h-full rounded-full ${budgetBarClass(level ?? (tone === "warning" ? "over" : "ok"))}`}
               style={{ width: `${progress}%` }}
             />
           </div>

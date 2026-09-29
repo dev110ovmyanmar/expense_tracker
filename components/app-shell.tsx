@@ -25,15 +25,16 @@ const NAV = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { storageWarning, storageMessage, hydrated, userName } = useExpenses();
+  const { storageWarning, storageMessage, saving, userName } = useExpenses();
   const { configured, signOut } = useAuth();
-
-  if (!hydrated) {
-    return <div className="grid min-h-svh place-items-center text-sm text-muted-foreground">Loading…</div>;
-  }
 
   return (
     <div className="min-h-svh">
+      {saving ? (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 overflow-hidden bg-primary/20 md:left-64" role="status" aria-label="Saving">
+          <div className="aura-savebar h-full w-1/3 bg-primary" />
+        </div>
+      ) : null}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
         <div className="px-5 pt-6">
           <Brand />
@@ -55,8 +56,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link href="/profile" className="min-w-0 flex-1 truncate text-sm font-medium">
                 {userName ?? "Profile"}
               </Link>
-              {configured ? (
-                <button type="button" className="shrink-0 text-xs text-muted-foreground" onClick={() => void signOut()}>
+                {configured ? (
+                <button type="button" className="min-h-11 shrink-0 px-1 text-xs text-muted-foreground transition-colors hover:text-foreground" onClick={() => void signOut()}>
                   Log out
                 </button>
               ) : null}
@@ -93,7 +94,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <BudgetControls compact />
               </div>
             ) : null}
-            {children}
+            <div key={pathname} className="animate-in fade-in slide-in-from-bottom-1 duration-300 ease-out">
+              {children}
+            </div>
           </div>
         </main>
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
@@ -107,7 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium",
+                      "flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium transition-colors duration-200 active:opacity-70",
                       active ? "text-primary" : "text-muted-foreground",
                     )}
                   >
@@ -153,7 +156,7 @@ function NavLink({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+        "flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors duration-200",
         active
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -207,7 +210,7 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className={`h-full rounded-full ${budgetBarClass(budgetLevel(spent, budget))}`}
+          className={`aura-bar h-full rounded-full ${budgetBarClass(budgetLevel(spent, budget))}`}
           style={{ width: `${ratio}%` }}
         />
       </div>
@@ -250,7 +253,7 @@ function BudgetControls({ compact = false }: { compact?: boolean }) {
       </div>
       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className={`h-full rounded-full ${budgetBarClass(budgetLevel(spent, budget))}`}
+          className={`aura-bar h-full rounded-full ${budgetBarClass(budgetLevel(spent, budget))}`}
           style={{ width: `${ratio}%` }}
         />
       </div>
