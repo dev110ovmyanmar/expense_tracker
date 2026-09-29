@@ -176,7 +176,7 @@ function BillDialog({
               <button
                 key={value}
                 type="button"
-                className={`h-9 rounded-md text-sm ${type === value ? "bg-background font-medium" : "text-muted-foreground"}`}
+                className={`h-9 rounded-md text-sm focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${type === value ? "bg-background font-medium" : "text-muted-foreground hover:text-foreground"}`}
                 onClick={() => {
                   const next = categoriesFor(value);
                   setType(value);
@@ -219,8 +219,8 @@ function BillDialog({
                   className="flex h-11 items-center justify-between rounded-md bg-muted px-3 text-sm"
                 >
                   Auto-add daily
-                  <span className={`relative h-5 w-9 rounded-full ${autoLog ? "bg-primary" : "bg-foreground/20"}`}>
-                    <span className={`absolute top-0.5 size-4 rounded-full bg-background ${autoLog ? "left-4" : "left-0.5"}`} />
+                  <span className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${autoLog ? "bg-primary" : "bg-foreground/20"}`}>
+                    <span className={`absolute top-0.5 size-4 rounded-full bg-background transition-transform duration-200 ease-out ${autoLog ? "translate-x-4" : "translate-x-0.5"}`} />
                   </span>
                 </button>
               </div>
@@ -286,7 +286,7 @@ function Choice({
       <Label>{label}</Label>
       <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
         {options.map(([id, text]) => (
-          <button key={id} type="button" className={`h-9 rounded-md text-xs ${value === id ? "bg-background font-medium" : "text-muted-foreground"}`} onClick={() => onChange(id)}>
+          <button key={id} type="button" className={`h-9 rounded-md text-xs focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${value === id ? "bg-background font-medium" : "text-muted-foreground hover:text-foreground"}`} onClick={() => onChange(id)}>
             {text}
           </button>
         ))}

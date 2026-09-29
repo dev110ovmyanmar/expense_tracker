@@ -147,8 +147,8 @@ function AddBillDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
             className="flex h-11 items-center justify-between rounded-md bg-muted px-3 text-sm"
           >
             Auto-add daily
-            <span className={`relative h-5 w-9 rounded-full ${autoDaily ? "bg-primary" : "bg-foreground/20"}`}>
-              <span className={`absolute top-0.5 size-4 rounded-full bg-background ${autoDaily ? "left-4" : "left-0.5"}`} />
+            <span className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${autoDaily ? "bg-primary" : "bg-foreground/20"}`}>
+              <span className={`absolute top-0.5 size-4 rounded-full bg-background transition-transform duration-200 ease-out ${autoDaily ? "translate-x-4" : "translate-x-0.5"}`} />
             </span>
           </button>
           {notice ? <p className="text-sm text-destructive">{notice}</p> : null}

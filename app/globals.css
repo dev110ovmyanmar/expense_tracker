@@ -288,6 +288,36 @@
   transition: width 500ms ease-out;
 }
 
+button,
+[role="button"],
+summary,
+a[href] {
+  transition-property: transform, background-color, color, border-color, box-shadow, opacity;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active,
+summary:active {
+  transform: scale(0.98);
+  transition-duration: 0ms;
+}
+
+button[data-size^="icon"]:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+button[data-press="flat"]:active,
+a[data-press="flat"]:active {
+  transform: none;
+}
+
+a[href]:active {
+  transform: scale(0.98);
+  transition-duration: 0ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

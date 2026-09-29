@@ -107,8 +107,8 @@ export function ExpenseFields({
             type="button"
             aria-pressed={draft.type === type}
             onClick={() => setType(type)}
-            className={`h-9 rounded-md text-sm font-medium ${
-              draft.type === type ? "bg-background shadow-sm" : "text-muted-foreground"
+            className={`h-9 rounded-md text-sm font-medium focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${
+              draft.type === type ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {type === "expense" ? "Expense" : "Income"}
@@ -292,6 +292,7 @@ export function ExpenseFields({
                   type="button"
                   variant="ghost"
                   size="icon"
+                  className="size-11"
                   aria-label={`Remove ${line.description || `line ${index + 1}`}`}
                   onClick={() =>
                     update({ lineItems: draft.lineItems.filter((item) => item.id !== line.id) })

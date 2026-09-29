@@ -74,7 +74,7 @@ export function ThemePicker({ compact = false }: { compact?: boolean }) {
             aria-label={theme.name}
             title={theme.name}
             onClick={() => choose(theme.id)}
-            className="grid h-8 place-items-center rounded-md"
+            className="grid h-11 place-items-center rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <span
               className={`size-5 rounded-full ${theme.id === active ? "outline outline-2 outline-offset-2 outline-primary" : "outline outline-1 outline-foreground/15"}`}

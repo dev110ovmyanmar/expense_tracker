@@ -78,7 +78,7 @@ export function AuthForms() {
               <button
                 key={value}
                 type="button"
-                className={`h-11 rounded-md text-sm ${mode === value ? "bg-background font-medium text-foreground" : "text-muted-foreground"}`}
+                className={`h-11 rounded-md text-sm focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${mode === value ? "bg-background font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                 onClick={() => { setMode(value); setNotice(""); }}
               >
                 {value === "sign-in" ? "Sign in" : "Sign up"}
@@ -108,11 +108,11 @@ export function AuthForms() {
             {busy ? "Please wait…" : mode === "reset" ? "Send reset link" : mode === "sign-in" ? "Sign in" : "Create account"}
           </Button>
           {mode === "sign-in" ? (
-            <button type="button" className="justify-self-start text-sm text-muted-foreground" onClick={() => { setMode("reset"); setNotice(""); }}>
+            <button type="button" className="justify-self-start text-sm text-muted-foreground hover:text-foreground" onClick={() => { setMode("reset"); setNotice(""); }}>
               Forgot password?
             </button>
           ) : (
-            <button type="button" className="justify-self-start text-sm text-muted-foreground" onClick={() => { setMode("sign-in"); setNotice(""); }}>
+            <button type="button" className="justify-self-start text-sm text-muted-foreground hover:text-foreground" onClick={() => { setMode("sign-in"); setNotice(""); }}>
               Back to sign in
             </button>
           )}
