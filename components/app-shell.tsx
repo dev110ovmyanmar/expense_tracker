@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, LayoutDashboard, ScanLine, UserRound, Wallet } from "lucide-react";
+import { BookOpen, LayoutDashboard, LogOut, ScanLine, UserRound, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -64,18 +64,20 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="md:pl-64">
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 md:hidden">
-          <Brand compact />
-          <div className="flex items-center gap-1">
-            {configured ? <LogOutButton onClick={() => void signOut()} /> : null}
-            <ThemePicker compact />
-            <Link
-              href="/profile"
-              aria-label={userName ? `Profile, ${userName}` : "Profile"}
-              className="grid size-9 place-items-center rounded-full bg-primary/15 text-sm font-medium text-primary"
-            >
-              {(userName ?? "A").slice(0, 1).toUpperCase()}
-            </Link>
+        <header className="sticky top-0 z-30 border-b bg-background px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 md:hidden">
+          <div className="flex h-12 items-center justify-between gap-3">
+            <Brand compact />
+            <div className="flex shrink-0 items-center gap-1">
+              {configured ? <LogOutButton compact onClick={() => void signOut()} /> : null}
+              <ThemePicker compact />
+              <Link
+                href="/profile"
+                aria-label={userName ? `Profile, ${userName}` : "Profile"}
+                className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-medium text-primary"
+              >
+                {(userName ?? "A").slice(0, 1).toUpperCase()}
+              </Link>
+            </div>
           </div>
         </header>
         <main className="overflow-x-hidden px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-10">
@@ -124,7 +126,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-function LogOutButton({ onClick }: { onClick: () => void }) {
+function LogOutButton({ onClick, compact = false }: { onClick: () => void; compact?: boolean }) {
+  if (compact) {
+    return (
+      <button
+        type="button"
+        aria-label="Log out"
+        onClick={onClick}
+        className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <LogOut className="size-4" />
+      </button>
+    );
+  }
   return (
     <button
       type="button"
@@ -138,12 +152,12 @@ function LogOutButton({ onClick }: { onClick: () => void }) {
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2.5">
-      <span className="grid size-8 place-items-center rounded-lg bg-primary font-heading text-lg text-primary-foreground">
+    <Link href="/" className="flex min-w-0 items-center gap-2.5">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary font-heading text-lg text-primary-foreground">
         A
       </span>
-      <span>
-        <span className="block font-heading text-lg leading-none">Aura</span>
+      <span className="min-w-0">
+        <span className="block truncate font-heading text-lg leading-none">Aura</span>
         {compact ? null : <span className="text-[11px] text-muted-foreground">Personal ledger</span>}
       </span>
     </Link>

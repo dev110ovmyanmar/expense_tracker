@@ -41,7 +41,7 @@ export function ThemePicker({ compact = false }: { compact?: boolean }) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="outline" size="icon" aria-label={`Theme: ${current.name}`}>
+          <Button type="button" variant="outline" size="icon" className="size-9 rounded-full" aria-label={`Theme: ${current.name}`}>
             <span className="size-4 rounded-full" style={{ background: current.swatch }} />
           </Button>
         </DropdownMenuTrigger>

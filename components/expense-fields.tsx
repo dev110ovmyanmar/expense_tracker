@@ -72,12 +72,12 @@ export function ExpenseFields({
   const categories = categoriesFor(draft.type);
 
   function update(partial: Partial<ExpenseDraft>) {
-    onChange({ ...draft, ...partial });
+    onChange({ ...draftRef.current, ...partial });
   }
 
   function replaceLine(id: string, patch: Partial<DraftLineItem>) {
     update({
-      lineItems: draft.lineItems.map((item) => {
+      lineItems: draftRef.current.lineItems.map((item) => {
         if (item.id !== id) return item;
         const next = { ...item, ...patch };
         if ("quantity" in patch || "unitPrice" in patch) {
@@ -160,6 +160,7 @@ export function ExpenseFields({
               ))}
             </SelectContent>
           </Select>
+          <p className="text-xs leading-4 text-muted-foreground">{CATEGORY_META[draft.category].description}</p>
         </div>
         <div className="grid gap-1.5 sm:col-span-2">
           <Label htmlFor={`${idPrefix}-amount`}>Amount</Label>
@@ -180,16 +181,16 @@ export function ExpenseFields({
           {errors.amount ? (
             <FieldError>{errors.amount}</FieldError>
           ) : itemsSum !== null && !income ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs leading-4 text-muted-foreground">
               Calculated from the line items. You can type a different total until a line changes.
             </p>
           ) : total !== null ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs leading-4 text-muted-foreground">
               Saves as {formatMoney(total)}
               {income ? "." : ". On a voucher that is the total or grand total, not the net amount."}
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs leading-4 text-muted-foreground">
               Myanmar kyat. Commas are optional, for example 1,650 or 86,400 Ks.
             </p>
           )}
@@ -222,10 +223,12 @@ export function ExpenseFields({
             No line items yet. Add them if the receipt lists individual charges.
           </p>
         ) : (
-          <ul className="grid gap-2">
-            {draft.lineItems.map((line, index) => (
-              <li key={line.id} className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_4.5rem_7rem_8rem_auto] sm:items-center">
-                <div className="col-span-2 grid gap-1 sm:col-auto">
+          <ul className="grid gap-2.5">
+            {draft.lineItems.map((line, index) => {
+              const lineTotal = parseMoney(line.amount);
+              return (
+              <li key={line.id} className="grid gap-2 rounded-xl border border-foreground/10 bg-muted/35 p-2.5">
+                <div className="grid gap-1">
                   <Input
                     aria-label={`Line ${index + 1} description`}
                     value={line.description}
@@ -237,7 +240,7 @@ export function ExpenseFields({
                       })
                     }
                     placeholder="Item name"
-                    className="h-10"
+                    className="h-11"
                   />
                   {priceNotes?.[line.id] ? (
                     <span
@@ -253,60 +256,59 @@ export function ExpenseFields({
                     </span>
                   ) : null}
                 </div>
-                <Input
-                  aria-label={`Line ${index + 1} quantity`}
-                  inputMode="decimal"
-                  value={line.quantity}
-                  onChange={(event) => replaceLine(line.id, { quantity: event.target.value })}
-                  placeholder="Qty"
-                  className="h-10 font-mono"
-                />
-                <Input
-                  aria-label={`Line ${index + 1} unit price`}
-                  inputMode="decimal"
-                  value={line.unitPrice}
-                  onChange={(event) => replaceLine(line.id, { unitPrice: event.target.value })}
-                  placeholder="Unit price"
-                  className="h-10 font-mono"
-                />
-                <Input
-                  aria-label={`Line ${index + 1} amount`}
-                  inputMode="decimal"
-                  value={line.amount}
-                  onChange={(event) =>
-                    update({
-                      lineItems: draft.lineItems.map((item) =>
-                        item.id === line.id ? { ...item, amount: event.target.value } : item,
-                      ),
-                    })
-                  }
-                  placeholder="Line total"
-                  className="h-10 font-mono"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-11"
-                  aria-label={`Remove ${line.description || `line ${index + 1}`}`}
-                  onClick={() =>
-                    update({ lineItems: draft.lineItems.filter((item) => item.id !== line.id) })
-                  }
-                >
-                  <Trash2 />
-                </Button>
+                <div className="@container grid grid-cols-[3.25rem_0.75rem_minmax(0,1fr)_2.5rem] items-center gap-x-1.5 gap-y-1 @[18rem]:grid-cols-[3.25rem_0.75rem_minmax(0,1fr)_auto_2.5rem]">
+                  <Input
+                    aria-label={`Line ${index + 1} quantity`}
+                    inputMode="decimal"
+                    value={line.quantity}
+                    onChange={(event) => replaceLine(line.id, { quantity: event.target.value })}
+                    placeholder="Qty"
+                    className="col-start-1 h-11 w-full px-1 text-center font-mono"
+                  />
+                  <span className="col-start-2 text-center text-sm text-muted-foreground" aria-hidden>
+                    ×
+                  </span>
+                  <Input
+                    aria-label={`Line ${index + 1} unit price`}
+                    inputMode="decimal"
+                    value={line.unitPrice}
+                    onChange={(event) => replaceLine(line.id, { unitPrice: event.target.value })}
+                    placeholder="Price"
+                    className="col-start-3 h-11 w-full min-w-0 font-mono"
+                  />
+                  <p
+                    className="col-span-3 col-start-1 text-right font-mono text-sm font-semibold whitespace-nowrap tabular-nums @[18rem]:col-span-1 @[18rem]:col-start-4 @[18rem]:row-start-1"
+                    aria-label={`Line ${index + 1} amount ${lineTotal === null ? "empty" : formatMoney(lineTotal)}`}
+                  >
+                    <span className="mr-1 font-sans text-xs font-normal text-muted-foreground">=</span>
+                    {lineTotal === null ? "—" : formatMoney(lineTotal)}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="col-start-4 row-start-1 size-10 justify-self-end text-muted-foreground hover:text-destructive @[18rem]:col-start-5"
+                    aria-label={`Remove ${line.description || `line ${index + 1}`}`}
+                    onClick={() =>
+                      update({ lineItems: draft.lineItems.filter((item) => item.id !== line.id) })
+                    }
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
         {errors.lineItems ? <FieldError>{errors.lineItems}</FieldError> : null}
         {reconciles ? (
-          <p className="rounded-lg bg-primary/10 px-3 py-2 text-xs text-foreground">
+          <p className="text-xs leading-4 text-muted-foreground">
             Line items match {formatMoney(total ?? 0)}.
           </p>
         ) : null}
         {linesShort && itemsSum !== null ? (
-          <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+          <p className="text-xs leading-4 text-muted-foreground">
             Dishes add up to {formatMoney(itemsSum)}. Service charge and tax stay inside the amount.
           </p>
         ) : null}
@@ -337,9 +339,6 @@ export function ExpenseFields({
           className="min-h-20"
         />
         {errors.notes ? <FieldError>{errors.notes}</FieldError> : null}
-        <p className="text-xs text-muted-foreground">
-          {CATEGORY_META[draft.category].description}
-        </p>
       </div>
     </div>
   );

@@ -309,12 +309,12 @@ export function OCRScanner() {
                 idPrefix="ocr"
                 priceNotes={quotes?.key === quoteKey ? quotes.notes : undefined}
               />
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button type="submit" className="h-11 flex-1 text-base" disabled={!hydrated || saving}>
+              <div className="flex flex-col gap-2 sm:flex-row-reverse sm:items-center">
+                <Button type="submit" className="h-12 w-full rounded-xl px-4 text-base sm:flex-1" disabled={!hydrated || saving}>
                   <Check />
                   {saving ? "Saving…" : "Confirm & Add to Expenses"}
                 </Button>
-                <Button type="button" variant="outline" className="h-11" onClick={reset}>
+                <Button type="button" variant="ghost" className="h-11 w-full text-muted-foreground sm:w-auto sm:px-4" onClick={reset}>
                   Discard
                 </Button>
               </div>

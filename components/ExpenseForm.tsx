@@ -94,10 +94,10 @@ export function ExpenseForm({
             />
           </div>
           <DialogFooter className="mx-0 mb-0 shrink-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="ghost" className="h-11 w-full text-muted-foreground sm:w-auto" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="h-10 px-4" disabled={saving}>
+            <Button type="submit" className="h-12 w-full rounded-xl px-4 text-base sm:h-11 sm:w-auto" disabled={saving}>
               {saving ? "Saving…" : editing ? "Save changes" : income ? "Add income" : "Add expense"}
             </Button>
           </DialogFooter>
