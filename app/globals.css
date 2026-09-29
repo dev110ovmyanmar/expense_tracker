@@ -313,6 +313,22 @@ a[data-press="flat"]:active {
   transform: none;
 }
 
+.aura-segment-pill {
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.aura-segment button {
+  transition-property: transform, color;
+  transition-duration: 200ms, 300ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aura-segment button:not(:disabled):active {
+  transform: scale(0.95);
+  transition-duration: 90ms, 300ms;
+}
+
 a[href]:active {
   transform: scale(0.98);
   transition-duration: 0ms;
