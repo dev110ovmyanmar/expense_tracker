@@ -5,15 +5,19 @@ export async function seedProfile(user: { id: string; email?: string | null; use
   const named = ["full_name", "user_name", "display_name", "name"]
     .map((key) => meta[key])
     .find((value): value is string => typeof value === "string" && value.trim().length > 0);
-  const { error } = await getSupabase().from("profiles").upsert(
-    {
-      id: user.id,
-      email: user.email ?? null,
-      full_name: named?.trim() || user.email?.split("@")[0] || null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "id" },
-  );
-  if (error) return error.message;
-  return null;
+  const supabase = getSupabase();
+  const row = {
+    id: user.id,
+    user_id: user.id,
+    email: user.email ?? null,
+    full_name: named?.trim() || user.email?.split("@")[0] || null,
+    updated_at: new Date().toISOString(),
+  };
+  const saved = await supabase.from("profiles").upsert(row, { onConflict: "id" });
+  if (!saved.error) return null;
+  if (!/user_id/i.test(saved.error.message)) return saved.error.message;
+  const { user_id: _owner, ...withoutOwner } = row;
+  void _owner;
+  const retry = await supabase.from("profiles").upsert(withoutOwner, { onConflict: "id" });
+  return retry.error?.message ?? null;
 }

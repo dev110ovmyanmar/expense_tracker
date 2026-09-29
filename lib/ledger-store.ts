@@ -535,7 +535,16 @@ export async function updateDisplayName(name: string) {
   const supabase = getSupabase();
   const { error } = await supabase.auth.updateUser({ data: { full_name: trimmed, user_name: trimmed } });
   if (error) throw new Error(error.message);
-  await supabase.from("profiles").update({ full_name: trimmed, updated_at: new Date().toISOString() }).eq("id", ledgerOwnerId());
+  const userId = ledgerOwnerId();
+  const updatedAt = new Date().toISOString();
+  const owned = await supabase
+    .from("profiles")
+    .update({ full_name: trimmed, user_id: userId, updated_at: updatedAt })
+    .eq("id", userId)
+    .eq("user_id", userId);
+  if (owned.error && /user_id|schema cache|column/i.test(owned.error.message)) {
+    await supabase.from("profiles").update({ full_name: trimmed, updated_at: updatedAt }).eq("id", userId);
+  }
   publish({ ...snapshot, userName: trimmed });
 }
 

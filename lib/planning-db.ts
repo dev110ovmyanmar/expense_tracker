@@ -86,9 +86,10 @@ export async function fetchPlanning(): Promise<{
   message: string | null;
 }> {
   const supabase = getSupabase();
+  const userId = ledgerOwnerId();
   const [recurringResult, goalsResult] = await Promise.all([
-    supabase.from("recurring_items").select("*").order("next_due", { ascending: true }),
-    supabase.from("savings_goals").select("*").order("created_at", { ascending: true }),
+    supabase.from("recurring_items").select("*").eq("user_id", userId).order("next_due", { ascending: true }),
+    supabase.from("savings_goals").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
   ]);
   const recurringError = recurringResult.error?.message ?? "";
   const goalsError = goalsResult.error?.message ?? "";
@@ -135,7 +136,7 @@ export async function saveRecurring(item: RecurringItem) {
 
 export async function deleteRecurring(id: string) {
   const supabase = getSupabase();
-  const { error } = await supabase.from("recurring_items").delete().eq("id", id);
+  const { error } = await supabase.from("recurring_items").delete().eq("id", id).eq("user_id", ledgerOwnerId());
   if (error) throw new Error(missingTable(error.message) ? MISSING_TABLE : error.message);
 }
 
@@ -166,7 +167,7 @@ export async function saveGoal(goal: SavingsGoal) {
 
 export async function deleteGoal(id: string) {
   const supabase = getSupabase();
-  const { error } = await supabase.from("savings_goals").delete().eq("id", id);
+  const { error } = await supabase.from("savings_goals").delete().eq("id", id).eq("user_id", ledgerOwnerId());
   if (error) throw new Error(missingTable(error.message) ? MISSING_TABLE : error.message);
 }
 

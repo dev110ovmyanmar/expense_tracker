@@ -22,9 +22,11 @@ function asCategory(value: string): Category {
 
 export async function fetchDailyBills(): Promise<DailyBill[]> {
   const supabase = getSupabase();
+  const userId = ledgerOwnerId();
   const { data, error } = await supabase
     .from("daily_bills")
     .select("id, title, amount, category, date, expense_id")
+    .eq("user_id", userId)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) {
