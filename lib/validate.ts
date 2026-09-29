@@ -4,6 +4,7 @@ import {
   DEFAULT_CURRENCY,
   type Category,
   type Currency,
+  type DraftLineItem,
   type Expense,
   type ExpenseDraft,
   type LineItem,
@@ -177,16 +178,34 @@ export function validateDraft(
   };
 }
 
+function liveNumber(value: string): number {
+  const cleaned = value
+    .trim()
+    .replace(/kyats?|mmk|ks|ကျပ်/gi, "")
+    .replace(/,/g, "")
+    .trim();
+  if (!cleaned || cleaned === "." || cleaned === "-") return 0;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function pricedLineAmount(line: DraftLineItem): number | null {
+  const hasQuantity = line.quantity.trim().length > 0;
+  const hasPrice = line.unitPrice.trim().length > 0;
+  if (!hasQuantity && !hasPrice) return null;
+  const quantity = hasQuantity ? liveNumber(line.quantity) : 1;
+  return roundMoney(quantity * liveNumber(line.unitPrice));
+}
+
+export function lineContribution(line: DraftLineItem): number {
+  if (line.amount.trim()) return roundMoney(liveNumber(line.amount));
+  return pricedLineAmount(line) ?? 0;
+}
+
 export function lineItemsTotal(draft: ExpenseDraft): number | null {
-  let sum = 0;
-  let counted = 0;
-  for (const line of draft.lineItems) {
-    if (!line.description.trim() && !line.amount.trim()) continue;
-    const amount = parseMoney(line.amount);
-    if (amount === null) return null;
-    sum += amount;
-    counted += 1;
-  }
-  if (counted === 0) return null;
-  return roundMoney(sum);
+  const active = draft.lineItems.filter(
+    (line) => line.quantity.trim() || line.unitPrice.trim() || line.amount.trim(),
+  );
+  if (active.length === 0) return null;
+  return roundMoney(active.reduce((sum, line) => sum + lineContribution(line), 0));
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
 import { CategoryDot } from "@/components/category-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { CATEGORY_META } from "@/lib/categories";
 import { formatMoney, moneyInput, parseMoney } from "@/lib/format";
 import type { PriceQuote } from "@/lib/price-intel";
-import { lineItemsTotal, type FieldErrors } from "@/lib/validate";
-import { categoriesFor, type EntryType, type ExpenseDraft } from "@/types/expense";
+import { lineItemsTotal, pricedLineAmount, type FieldErrors } from "@/lib/validate";
+import { categoriesFor, type DraftLineItem, type EntryType, type ExpenseDraft } from "@/types/expense";
 
 export function ExpenseFields({
   draft,
@@ -34,6 +35,31 @@ export function ExpenseFields({
 }) {
   const itemsSum = lineItemsTotal(draft);
   const total = parseMoney(draft.amount);
+  const lineKey = useMemo(
+    () =>
+      draft.lineItems
+        .map((line) => `${line.id}:${line.quantity}:${line.unitPrice}:${line.amount}`)
+        .join("|"),
+    [draft.lineItems],
+  );
+  const seenLines = useRef(lineKey);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  useEffect(() => {
+    if (seenLines.current === lineKey) return;
+    const hadPricedLines = seenLines.current.split("|").some((part) => {
+      const [, quantity = "", unitPrice = "", amount = ""] = part.split(":");
+      return quantity.trim() || unitPrice.trim() || amount.trim();
+    });
+    seenLines.current = lineKey;
+    const current = draftRef.current;
+    const sum = lineItemsTotal(current);
+    if (sum === null && !hadPricedLines) return;
+    const nextAmount = moneyInput(sum ?? 0);
+    if (current.amount === nextAmount) return;
+    onChange({ ...current, amount: nextAmount });
+  }, [lineKey, onChange]);
   const reconciles =
     itemsSum !== null && total !== null && Math.abs(itemsSum - total) <= 0.009;
   const linesShort =
@@ -46,6 +72,20 @@ export function ExpenseFields({
 
   function update(partial: Partial<ExpenseDraft>) {
     onChange({ ...draft, ...partial });
+  }
+
+  function replaceLine(id: string, patch: Partial<DraftLineItem>) {
+    update({
+      lineItems: draft.lineItems.map((item) => {
+        if (item.id !== id) return item;
+        const next = { ...item, ...patch };
+        if ("quantity" in patch || "unitPrice" in patch) {
+          const priced = pricedLineAmount(next);
+          if (priced !== null && next.unitPrice.trim()) next.amount = moneyInput(priced);
+        }
+        return next;
+      }),
+    });
   }
 
   function setType(type: EntryType) {
@@ -144,6 +184,10 @@ export function ExpenseFields({
           </div>
           {errors.amount ? (
             <FieldError>{errors.amount}</FieldError>
+          ) : itemsSum !== null && !income ? (
+            <p className="text-xs text-muted-foreground">
+              Calculated from the line items. You can type a different total until a line changes.
+            </p>
           ) : total !== null ? (
             <p className="text-xs text-muted-foreground">
               Saves as {formatMoney(total)}
@@ -218,13 +262,7 @@ export function ExpenseFields({
                   aria-label={`Line ${index + 1} quantity`}
                   inputMode="decimal"
                   value={line.quantity}
-                  onChange={(event) =>
-                    update({
-                      lineItems: draft.lineItems.map((item) =>
-                        item.id === line.id ? { ...item, quantity: event.target.value } : item,
-                      ),
-                    })
-                  }
+                  onChange={(event) => replaceLine(line.id, { quantity: event.target.value })}
                   placeholder="Qty"
                   className="h-10 font-mono"
                 />
@@ -232,13 +270,7 @@ export function ExpenseFields({
                   aria-label={`Line ${index + 1} unit price`}
                   inputMode="decimal"
                   value={line.unitPrice}
-                  onChange={(event) =>
-                    update({
-                      lineItems: draft.lineItems.map((item) =>
-                        item.id === line.id ? { ...item, unitPrice: event.target.value } : item,
-                      ),
-                    })
-                  }
+                  onChange={(event) => replaceLine(line.id, { unitPrice: event.target.value })}
                   placeholder="Unit price"
                   className="h-10 font-mono"
                 />
