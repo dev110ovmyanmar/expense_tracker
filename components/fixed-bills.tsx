@@ -2,6 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { SegmentedControl } from "@/components/segmented-control";
+import { SwitchRow } from "@/components/switch-row";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -139,13 +141,13 @@ function BillDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="overflow-y-auto sm:max-h-[min(90svh,760px)] sm:max-w-md max-sm:top-3 max-sm:bottom-[calc(5.25rem+env(safe-area-inset-bottom))] max-sm:max-h-none max-sm:translate-y-0">
         <DialogHeader>
           <DialogTitle>{item ? "Edit bill" : "Add a fixed bill"}</DialogTitle>
           <DialogDescription>Log it when the date arrives, or let Aura add it for you.</DialogDescription>
         </DialogHeader>
         <form
-          className="grid gap-3"
+          className="grid gap-4"
           onSubmit={(event) => {
             event.preventDefault();
             const parsed = parseMoney(amount);
@@ -171,22 +173,20 @@ function BillDialog({
             );
           }}
         >
-          <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-            {(["expense", "income"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={`h-9 rounded-md text-sm focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${type === value ? "bg-background font-medium" : "text-muted-foreground hover:text-foreground"}`}
-                onClick={() => {
-                  const next = categoriesFor(value);
-                  setType(value);
-                  setCategory(next.includes(category) ? category : next[0]);
-                }}
-              >
-                {value === "expense" ? "Expense" : "Income"}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Bill type"
+            value={type}
+            onChange={(value) => {
+              const nextType = value === "income" ? "income" : "expense";
+              const next = categoriesFor(nextType);
+              setType(nextType);
+              setCategory(next.includes(category) ? category : next[0]);
+            }}
+            options={[
+              { id: "expense", label: "Expense" },
+              { id: "income", label: "Income" },
+            ]}
+          />
           <Field label="Name" id="bill-name">
             <Input id="bill-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Rent" className="h-11" />
           </Field>
@@ -206,32 +206,41 @@ function BillDialog({
               </SelectContent>
             </Select>
           </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <Choice label="Frequency" value={frequency} options={[["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"]]} onChange={(value) => setFrequency(value as Frequency)} />
-            {frequency === "daily" ? (
-              <div className="grid gap-1.5">
-                <span className="text-xs text-muted-foreground">Each day</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={autoLog}
-                  onClick={() => setAutoLog((value) => !value)}
-                  className="flex h-11 items-center justify-between rounded-md bg-muted px-3 text-sm"
-                >
-                  Auto-add daily
-                  <span className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${autoLog ? "bg-primary" : "bg-foreground/20"}`}>
-                    <span className={`absolute top-0.5 size-4 rounded-full bg-background transition-transform duration-200 ease-out ${autoLog ? "translate-x-4" : "translate-x-0.5"}`} />
-                  </span>
-                </button>
-              </div>
-            ) : (
-              <Choice label="When due" value={autoLog ? "auto" : "ask"} options={[["ask", "Ask me"], ["auto", "Log it"]]} onChange={(value) => setAutoLog(value === "auto")} />
-            )}
+          <div className="grid gap-1.5">
+            <Label>Frequency</Label>
+            <SegmentedControl
+              label="Frequency"
+              value={frequency}
+              onChange={(value) => setFrequency(value as Frequency)}
+              options={[
+                { id: "daily", label: "Daily" },
+                { id: "weekly", label: "Weekly" },
+                { id: "monthly", label: "Monthly" },
+              ]}
+            />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />
-            Active
-          </label>
+          {frequency === "daily" ? (
+            <SwitchRow
+              checked={autoLog}
+              onCheckedChange={setAutoLog}
+              label="Auto-add daily"
+              description="Add this bill to the ledger each day."
+            />
+          ) : (
+            <div className="grid gap-1.5">
+              <Label>When due</Label>
+              <SegmentedControl
+                label="When due"
+                value={autoLog ? "auto" : "ask"}
+                onChange={(value) => setAutoLog(value === "auto")}
+                options={[
+                  { id: "ask", label: "Ask me" },
+                  { id: "auto", label: "Log it" },
+                ]}
+              />
+            </div>
+          )}
+          <SwitchRow checked={active} onCheckedChange={setActive} label="Active" description="Paused bills stay on the list and are not logged." />
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter className="sm:justify-between">
             {onDelete ? (
@@ -270,27 +279,3 @@ function Field({ label, id, children }: { label: string; id?: string; children: 
   );
 }
 
-function Choice({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: [string, string][];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="grid gap-1.5">
-      <Label>{label}</Label>
-      <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-        {options.map(([id, text]) => (
-          <button key={id} type="button" className={`h-9 rounded-md text-xs focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${value === id ? "bg-background font-medium" : "text-muted-foreground hover:text-foreground"}`} onClick={() => onChange(id)}>
-            {text}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}

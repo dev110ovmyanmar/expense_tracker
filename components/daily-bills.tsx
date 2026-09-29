@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useExpenses } from "@/components/expense-provider";
+import { SwitchRow } from "@/components/switch-row";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -139,18 +140,12 @@ function AddBillDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
             <Label htmlFor="bill-date">Date</Label>
             <Input id="bill-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="h-11" />
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={autoDaily}
-            onClick={() => setAutoDaily((value) => !value)}
-            className="flex h-11 items-center justify-between rounded-md bg-muted px-3 text-sm"
-          >
-            Auto-add daily
-            <span className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${autoDaily ? "bg-primary" : "bg-foreground/20"}`}>
-              <span className={`absolute top-0.5 size-4 rounded-full bg-background transition-transform duration-200 ease-out ${autoDaily ? "translate-x-4" : "translate-x-0.5"}`} />
-            </span>
-          </button>
+          <SwitchRow
+            checked={autoDaily}
+            onCheckedChange={setAutoDaily}
+            label="Auto-add daily"
+            description="Add this bill to the ledger each day."
+          />
           {notice ? <p className="text-sm text-destructive">{notice}</p> : null}
         </form>
         <DialogFooter>

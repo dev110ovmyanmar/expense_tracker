@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CATEGORY_META } from "@/lib/categories";
+import { SegmentedControl } from "@/components/segmented-control";
 import { formatMoney, moneyInput, parseMoney } from "@/lib/format";
 import type { PriceQuote } from "@/lib/price-intel";
 import { lineItemsTotal, pricedLineAmount, type FieldErrors } from "@/lib/validate";
@@ -99,24 +100,18 @@ export function ExpenseFields({
   }
 
   return (
-    <div className="grid gap-4">
-      <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
-        {(["expense", "income"] as const).map((type) => (
-          <button
-            key={type}
-            type="button"
-            aria-pressed={draft.type === type}
-            onClick={() => setType(type)}
-            className={`h-9 rounded-md text-sm font-medium focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${
-              draft.type === type ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {type === "expense" ? "Expense" : "Income"}
-          </button>
-        ))}
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2 sm:col-span-2">
+    <div className="flex flex-col gap-5">
+      <SegmentedControl
+        label="Entry type"
+        value={draft.type}
+        onChange={(type) => setType(type === "income" ? "income" : "expense")}
+        options={[
+          { id: "expense", label: "Expense" },
+          { id: "income", label: "Income" },
+        ]}
+      />
+      <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+        <div className="grid gap-1.5 sm:col-span-2">
           <Label htmlFor={`${idPrefix}-vendor`}>{income ? "Source" : "Vendor name"}</Label>
           <Input
             id={`${idPrefix}-vendor`}
@@ -125,11 +120,11 @@ export function ExpenseFields({
             placeholder={income ? "Employer or payer" : "Merchant or payee"}
             aria-invalid={Boolean(errors.vendor)}
             autoComplete="off"
-            className="h-10"
+            className="h-11"
           />
           {errors.vendor ? <FieldError>{errors.vendor}</FieldError> : null}
         </div>
-        <div className="grid gap-2">
+        <div className="grid gap-1.5">
           <Label htmlFor={`${idPrefix}-date`}>Date</Label>
           <Input
             id={`${idPrefix}-date`}
@@ -137,11 +132,11 @@ export function ExpenseFields({
             value={draft.date}
             onChange={(event) => update({ date: event.target.value })}
             aria-invalid={Boolean(errors.date)}
-            className="h-10"
+            className="h-11"
           />
           {errors.date ? <FieldError>{errors.date}</FieldError> : null}
         </div>
-        <div className="grid gap-2">
+        <div className="grid gap-1.5">
           <Label htmlFor={`${idPrefix}-category`}>Category</Label>
           <Select
             value={draft.category}
@@ -151,7 +146,7 @@ export function ExpenseFields({
               }
             }}
           >
-            <SelectTrigger id={`${idPrefix}-category`} className="h-10 w-full">
+            <SelectTrigger id={`${idPrefix}-category`} className="h-11 w-full">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
@@ -166,7 +161,7 @@ export function ExpenseFields({
             </SelectContent>
           </Select>
         </div>
-        <div className="grid gap-2 sm:col-span-2">
+        <div className="grid gap-1.5 sm:col-span-2">
           <Label htmlFor={`${idPrefix}-amount`}>Amount</Label>
           <div className="relative">
             <Input
@@ -202,7 +197,7 @@ export function ExpenseFields({
       </div>
 
       {income ? null : (
-      <div className="grid gap-2" id={`${idPrefix}-lineItems`}>
+      <div className="grid gap-2.5" id={`${idPrefix}-lineItems`}>
         <div className="flex items-center justify-between gap-3">
           <Label>Line items</Label>
           <Button
@@ -331,7 +326,7 @@ export function ExpenseFields({
       </div>
       )}
 
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         <Label htmlFor={`${idPrefix}-notes`}>Notes</Label>
         <Textarea
           id={`${idPrefix}-notes`}
