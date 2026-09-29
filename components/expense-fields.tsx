@@ -21,6 +21,8 @@ import type { PriceQuote } from "@/lib/price-intel";
 import { lineItemsTotal, pricedLineAmount, type FieldErrors } from "@/lib/validate";
 import { categoriesFor, type DraftLineItem, type EntryType, type ExpenseDraft } from "@/types/expense";
 
+const LINE_COLUMNS = "sm:grid-cols-[minmax(0,1fr)_4.5rem_6.5rem_7.25rem_2.75rem] sm:gap-3";
+
 export function ExpenseFields({
   draft,
   onChange,
@@ -223,83 +225,96 @@ export function ExpenseFields({
             No line items yet. Add them if the receipt lists individual charges.
           </p>
         ) : (
-          <ul className="grid gap-2.5">
-            {draft.lineItems.map((line, index) => {
-              const lineTotal = parseMoney(line.amount);
-              return (
-              <li key={line.id} className="grid gap-2 rounded-xl border border-foreground/10 bg-muted/35 p-2.5">
-                <div className="grid gap-1">
-                  <Input
-                    aria-label={`Line ${index + 1} description`}
-                    value={line.description}
-                    onChange={(event) =>
-                      update({
-                        lineItems: draft.lineItems.map((item) =>
-                          item.id === line.id ? { ...item, description: event.target.value } : item,
-                        ),
-                      })
-                    }
-                    placeholder="Item name"
-                    className="h-11"
-                  />
-                  {priceNotes?.[line.id] ? (
-                    <span
-                      className={`w-fit rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                        priceNotes[line.id].tone === "up"
-                          ? "bg-destructive/10 text-destructive"
-                          : priceNotes[line.id].tone === "down"
-                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                            : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {priceNotes[line.id].text}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="@container grid grid-cols-[3.25rem_0.75rem_minmax(0,1fr)_2.5rem] items-center gap-x-1.5 gap-y-1 @[18rem]:grid-cols-[3.25rem_0.75rem_minmax(0,1fr)_auto_2.5rem]">
-                  <Input
-                    aria-label={`Line ${index + 1} quantity`}
-                    inputMode="decimal"
-                    value={line.quantity}
-                    onChange={(event) => replaceLine(line.id, { quantity: event.target.value })}
-                    placeholder="Qty"
-                    className="col-start-1 h-11 w-full px-1 text-center font-mono"
-                  />
-                  <span className="col-start-2 text-center text-sm text-muted-foreground" aria-hidden>
-                    ×
-                  </span>
-                  <Input
-                    aria-label={`Line ${index + 1} unit price`}
-                    inputMode="decimal"
-                    value={line.unitPrice}
-                    onChange={(event) => replaceLine(line.id, { unitPrice: event.target.value })}
-                    placeholder="Price"
-                    className="col-start-3 h-11 w-full min-w-0 font-mono"
-                  />
-                  <p
-                    className="col-span-3 col-start-1 text-right font-mono text-sm font-semibold whitespace-nowrap tabular-nums @[18rem]:col-span-1 @[18rem]:col-start-4 @[18rem]:row-start-1"
-                    aria-label={`Line ${index + 1} amount ${lineTotal === null ? "empty" : formatMoney(lineTotal)}`}
+          <div className="sm:overflow-hidden sm:rounded-xl sm:border sm:border-foreground/10 sm:bg-muted/20">
+            <div className={`hidden px-3 pt-2.5 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase sm:grid ${LINE_COLUMNS}`}>
+              <span>Item name</span>
+              <span className="text-right">Qty</span>
+              <span className="text-right">Price</span>
+              <span className="text-right">Total</span>
+              <span className="sr-only">Remove</span>
+            </div>
+            <ul className="grid gap-2 sm:gap-0 sm:divide-y sm:divide-foreground/10">
+              {draft.lineItems.map((line, index) => {
+                const lineTotal = parseMoney(line.amount);
+                const totalLabel = lineTotal === null ? "—" : formatMoney(lineTotal);
+                return (
+                  <li
+                    key={line.id}
+                    className={`rounded-lg border border-foreground/10 bg-muted/30 px-3 py-3 sm:items-center sm:rounded-none sm:border-0 sm:bg-transparent sm:py-2 sm:grid ${LINE_COLUMNS}`}
                   >
-                    <span className="mr-1 font-sans text-xs font-normal text-muted-foreground">=</span>
-                    {lineTotal === null ? "—" : formatMoney(lineTotal)}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="col-start-4 row-start-1 size-10 justify-self-end text-muted-foreground hover:text-destructive @[18rem]:col-start-5"
-                    aria-label={`Remove ${line.description || `line ${index + 1}`}`}
-                    onClick={() =>
-                      update({ lineItems: draft.lineItems.filter((item) => item.id !== line.id) })
-                    }
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              </li>
-              );
-            })}
-          </ul>
+                    <div className="grid min-w-0 gap-1">
+                      <Input
+                        aria-label={`Line ${index + 1} description`}
+                        value={line.description}
+                        onChange={(event) =>
+                          update({
+                            lineItems: draftRef.current.lineItems.map((item) =>
+                              item.id === line.id ? { ...item, description: event.target.value } : item,
+                            ),
+                          })
+                        }
+                        placeholder="Item name"
+                        className="h-11 border-foreground/15 bg-background/40 px-3 sm:h-10"
+                      />
+                      {priceNotes?.[line.id] ? (
+                        <span
+                          className={`w-fit rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            priceNotes[line.id].tone === "up"
+                              ? "bg-destructive/10 text-destructive"
+                              : priceNotes[line.id].tone === "down"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                                : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {priceNotes[line.id].text}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-2.5 flex flex-nowrap items-center gap-2 sm:contents">
+                      <Input
+                        aria-label={`Line ${index + 1} quantity`}
+                        inputMode="decimal"
+                        value={line.quantity}
+                        onChange={(event) => replaceLine(line.id, { quantity: event.target.value })}
+                        placeholder="Qty"
+                        className="h-11 w-16 shrink-0 border-foreground/15 bg-background/40 px-2 text-right font-mono sm:h-10 sm:w-full"
+                      />
+                      <span className="shrink-0 text-sm text-muted-foreground sm:hidden" aria-hidden>
+                        ×
+                      </span>
+                      <Input
+                        aria-label={`Line ${index + 1} unit price`}
+                        inputMode="decimal"
+                        value={line.unitPrice}
+                        onChange={(event) => replaceLine(line.id, { unitPrice: event.target.value })}
+                        placeholder="Price"
+                        className="h-11 min-w-[5.5rem] flex-1 border-foreground/15 bg-background/40 px-2 text-right font-mono sm:h-10 sm:w-full sm:min-w-0 sm:flex-none"
+                      />
+                      <span
+                        className="w-[5.75rem] shrink-0 text-right font-mono text-[13px] font-semibold whitespace-nowrap tabular-nums sm:w-full sm:text-sm"
+                        aria-label={`Line ${index + 1} amount ${lineTotal === null ? "empty" : totalLabel}`}
+                      >
+                        <span className="mr-1 font-sans text-xs font-normal text-muted-foreground sm:hidden">=</span>
+                        {totalLabel}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-10 shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        aria-label={`Remove ${line.description || `line ${index + 1}`}`}
+                        onClick={() =>
+                          update({ lineItems: draftRef.current.lineItems.filter((item) => item.id !== line.id) })
+                        }
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
         {errors.lineItems ? <FieldError>{errors.lineItems}</FieldError> : null}
         {reconciles ? (

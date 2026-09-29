@@ -71,7 +71,7 @@ export function ExpenseForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col gap-0 overflow-hidden p-0 sm:max-h-[min(90svh,760px)] sm:max-w-xl max-sm:top-3 max-sm:bottom-[calc(5.25rem+env(safe-area-inset-bottom))] max-sm:max-h-none max-sm:translate-y-0">
+      <DialogContent className="flex max-w-[calc(100%-0.75rem)] flex-col gap-0 overflow-hidden p-0 sm:max-h-[min(90svh,760px)] sm:max-w-2xl max-sm:top-3 max-sm:bottom-[calc(5.25rem+env(safe-area-inset-bottom))] max-sm:max-h-none max-sm:translate-y-0">
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
           <DialogHeader className="shrink-0 px-4 pt-4 pr-12">
             <DialogTitle className="font-heading text-xl">
@@ -85,7 +85,7 @@ export function ExpenseForm({
                   : "Log a charge in kyat. It shows up on the overview immediately."}
             </DialogDescription>
           </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
             <ExpenseFields
               draft={draft}
               onChange={setDraft}
