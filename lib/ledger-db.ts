@@ -76,18 +76,16 @@ function rowToExpense(row: ExpenseRow): Expense | null {
   };
 }
 
-const LOCKED =
-  "Run supabase/migrations/010_open_ledger.sql in the Supabase SQL editor, then reload.";
+const OWN_LEDGER =
+  "Run supabase/migrations/011_own_ledger.sql in the Supabase SQL editor, then reload.";
 const LIMITS_MISSING =
   "Run supabase/migrations/006_category_budgets.sql in the Supabase SQL editor, then reload.";
 
 function friendlyError(message: string): string {
   if (/category_limits/i.test(message)) return LIMITS_MISSING;
-  if (/anonymous sign-ins are disabled/i.test(message)) return LOCKED;
-  if (/violates foreign key/i.test(message)) return LOCKED;
-  if (/row-level security|permission denied/i.test(message)) {
-    return "Run supabase/migrations/010_open_ledger.sql in the Supabase SQL editor, then reload.";
-  }
+  if (/anonymous sign-ins are disabled/i.test(message)) return "Sign in to open your ledger.";
+  if (/violates foreign key/i.test(message)) return OWN_LEDGER;
+  if (/row-level security|permission denied/i.test(message)) return OWN_LEDGER;
   return message;
 }
 
@@ -115,24 +113,18 @@ function expenseToRow(expense: Expense, userId: string) {
 }
 
 export async function fetchRemoteLedger(supabase = getSupabase()): Promise<RemoteLedger> {
-  let userId: string | undefined;
-  try {
-    userId = ledgerOwnerId();
-  } catch {
-    userId = undefined;
-  }
+  const userId = ledgerOwnerId();
   const [expensesResult, budgetResult] = await Promise.all([
     supabase
       .from("expenses")
       .select("*")
+      .eq("user_id", userId)
       .order("date", { ascending: false })
       .order("created_at", { ascending: false }),
-    userId
-      ? supabase.from("budgets").select("amount, category_limits").eq("user_id", userId).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
+    supabase.from("budgets").select("amount, category_limits").eq("user_id", userId).maybeSingle(),
   ]);
   if (expensesResult.error) throw new Error(friendlyError(expensesResult.error.message));
-  if (budgetResult.error && /category_limits/i.test(budgetResult.error.message) && userId) {
+  if (budgetResult.error && /category_limits/i.test(budgetResult.error.message)) {
     const plain = await supabase.from("budgets").select("amount").eq("user_id", userId).maybeSingle();
     if (plain.error) throw new Error(friendlyError(plain.error.message));
     const budgetValue = plain.data?.amount;
@@ -170,9 +162,12 @@ export async function upsertExpenses(expenses: Expense[]) {
     if (error) throw new Error(friendlyError(error.message));
   } catch (error) {
     if (!networkFailure(error)) throw error instanceof Error ? error : new Error("The expense could not be saved.");
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error("Sign in to open your ledger.");
     const response = await fetch("/api/ledger", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ rows }),
     });
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -185,7 +180,7 @@ export async function upsertExpenses(expenses: Expense[]) {
 
 export async function deleteRemoteExpense(id: string) {
   const supabase = getSupabase();
-  const { error } = await supabase.from("expenses").delete().eq("id", id);
+  const { error } = await supabase.from("expenses").delete().eq("id", id).eq("user_id", ledgerOwnerId());
   if (error) throw new Error(friendlyError(error.message));
 }
 
@@ -209,7 +204,7 @@ export async function clearRemoteLedger() {
   const expenseIds = (listed.data ?? []).map((row) => row.id).filter((id): id is string => typeof id === "string");
   for (let index = 0; index < expenseIds.length; index += 100) {
     const chunk = expenseIds.slice(index, index + 100);
-    const removed = await supabase.from("receipt_items").delete().in("expense_id", chunk);
+    const removed = await supabase.from("receipt_items").delete().in("expense_id", chunk).eq("user_id", userId);
     if (removed.error && !optionalTable(removed.error.message)) throw new Error(friendlyError(removed.error.message));
   }
   await deleteOwned("daily_bills", userId);

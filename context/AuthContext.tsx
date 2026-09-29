@@ -53,10 +53,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       window.setTimeout(() => apply(next), 0);
     });
-    void supabase.auth.getSession().then(({ data: stored }) => {
+    void (async () => {
+      const { data: stored } = await supabase.auth.getSession();
       if (settled) return;
-      apply(stored.session);
-    });
+      if (!stored.session) {
+        apply(null);
+        return;
+      }
+      const { data: checked, error } = await supabase.auth.getUser();
+      if (settled) return;
+      if (checked.user?.id === stored.session.user.id) {
+        apply(stored.session);
+        return;
+      }
+      if (error && /network|fetch|failed/i.test(error.message)) {
+        apply(stored.session);
+        return;
+      }
+      apply(null);
+    })();
     return () => data.subscription.unsubscribe();
   }, [configured]);
 

@@ -1,5 +1,5 @@
 import { formatMoney, parseMoney, roundMoney } from "@/lib/format";
-import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabase, isSupabaseConfigured, ledgerOwnerId } from "@/lib/supabase";
 import type { Expense, ExpenseDraft } from "@/types/expense";
 
 export interface PriceQuote {
@@ -55,10 +55,17 @@ export function rowsFromExpenses(expenses: Expense[]): PriceRow[] {
 
 export async function fetchShopPrices(shopName: string): Promise<PriceRow[]> {
   if (!isSupabaseConfigured() || !itemKey(shopName)) return [];
+  let userId: string;
+  try {
+    userId = ledgerOwnerId();
+  } catch {
+    return [];
+  }
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("receipt_items")
     .select("expense_id, shop_name, item_name, unit_price, date")
+    .eq("user_id", userId)
     .ilike("shop_name", shopName.trim())
     .order("date", { ascending: false });
   if (error || !data) return [];
@@ -77,11 +84,13 @@ export async function fetchShopPrices(shopName: string): Promise<PriceRow[]> {
 
 export async function saveReceiptItems(expense: Expense) {
   if (!isSupabaseConfigured() || expense.source !== "ocr") return;
+  const userId = ledgerOwnerId();
   const rows = expense.lineItems.flatMap((item) => {
     const unitPrice = unitPriceOf(item);
     if (!item.description.trim() || unitPrice === null) return [];
     return [{
       expense_id: expense.id,
+      user_id: userId,
       shop_name: expense.vendor,
       item_name: item.description,
       unit_price: unitPrice,
@@ -89,7 +98,7 @@ export async function saveReceiptItems(expense: Expense) {
     }];
   });
   const supabase = getSupabase();
-  await supabase.from("receipt_items").delete().eq("expense_id", expense.id);
+  await supabase.from("receipt_items").delete().eq("expense_id", expense.id).eq("user_id", userId);
   if (rows.length === 0) return;
   const { error } = await supabase.from("receipt_items").insert(rows);
   if (error && !/receipt_items|schema cache|does not exist/i.test(error.message)) {
