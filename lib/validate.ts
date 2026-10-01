@@ -71,20 +71,25 @@ export function draftFromExpense(expense: Expense): ExpenseDraft {
 }
 
 export function draftFromOCR(data: OCRData): ExpenseDraft {
+  const type = data.direction === "in" ? "income" : "expense";
+  const allowed = categoriesFor(type);
   return {
-    type: "expense",
+    type,
     vendor: data.vendor,
     date: data.date,
     amount: data.totalFound ? moneyInput(data.total) : "",
-    category: data.category,
+    category: allowed.includes(data.category) ? data.category : allowed[allowed.length - 1],
     notes: data.notes,
-    lineItems: data.lineItems.map((item) => ({
-      id: item.id,
-      description: item.description,
-      quantity: item.quantity ? moneyInput(item.quantity) : "",
-      unitPrice: item.unitPrice ? moneyInput(item.unitPrice) : "",
-      amount: moneyInput(item.amount),
-    })),
+    lineItems:
+      type === "income"
+        ? []
+        : data.lineItems.map((item) => ({
+            id: item.id,
+            description: item.description,
+            quantity: item.quantity ? moneyInput(item.quantity) : "",
+            unitPrice: item.unitPrice ? moneyInput(item.unitPrice) : "",
+            amount: moneyInput(item.amount),
+          })),
   };
 }
 

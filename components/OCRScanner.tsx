@@ -287,13 +287,7 @@ export function OCRScanner() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <CardTitle>Extracted fields</CardTitle>
-                <CardDescription>
-                  {ocr.warning
-                    ? ocr.warning
-                    : ocr.totalFound && confidence >= 70
-                      ? `${ocr.vendor} is filled from the voucher. The amount is the grand total. Check each item before you add it.`
-                      : "The vision read is incomplete. Type the shop and the grand total in kyat."}
-                </CardDescription>
+                <CardDescription>{reviewHint(ocr, confidence)}</CardDescription>
               </div>
               <Badge variant="secondary">{ocr.warning && !ocr.totalFound ? "Not read" : `${confidence}% match`}</Badge>
             </div>
@@ -311,7 +305,7 @@ export function OCRScanner() {
               <div className="flex flex-col gap-2 sm:flex-row-reverse sm:items-center">
                 <Button type="submit" className="h-12 w-full rounded-xl px-4 text-base sm:flex-1" disabled={!hydrated || saving}>
                   <Check />
-                  {saving ? "Saving…" : "Confirm & Add to Expenses"}
+                  {saving ? "Saving…" : draft.type === "income" ? "Confirm & add income" : "Confirm & add expense"}
                 </Button>
                 <Button type="button" variant="ghost" className="h-11 w-full text-muted-foreground sm:w-auto sm:px-4" onClick={reset}>
                   Discard
@@ -363,8 +357,7 @@ export function OCRScanner() {
           </span>
           <h2 className="mt-4 font-heading text-2xl tracking-tight">Drop a receipt or voucher</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-            PNG or JPG vouchers are sent to a vision model, which returns the shop, items, and grand total.
-            Check the form before it joins the ledger.
+            Shop slips and KBZPay e-receipts are read here. A plus amount opens as income, and a minus amount opens as an expense. Switch the Income tab if you need to.
           </p>
           <Button asChild className="mt-5 h-11 w-full sm:w-auto">
             <label htmlFor="receipt-upload">
@@ -376,6 +369,20 @@ export function OCRScanner() {
       </CardContent>
     </Card>
   );
+}
+
+function reviewHint(ocr: OCRData, confidence: number): string {
+  if (ocr.warning) return ocr.warning;
+  if (!ocr.totalFound || confidence < 70) {
+    return "The vision read is incomplete. Type the name and the amount in kyat.";
+  }
+  if (ocr.direction === "in") {
+    return `${ocr.vendor} is filled in. The amount is marked +, so Income is selected. Switch to Expense if this money went out.`;
+  }
+  if (ocr.direction === "out") {
+    return `${ocr.vendor} is filled in. The amount is marked −, so this is an expense. Switch to Income if this money came in.`;
+  }
+  return `${ocr.vendor} is filled from the voucher. The amount is the grand total. Choose Income if this was money you received.`;
 }
 
 function ReceiptReadout({ ocr }: { ocr: OCRData }) {

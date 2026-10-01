@@ -59,6 +59,8 @@ export interface VoucherScan {
   serviceCharge: number;
   grandTotal: number;
   currency: string;
+  direction: "in" | "out" | null;
+  note: string;
 }
 
 export interface Expense {
@@ -92,6 +94,7 @@ export interface OCRData {
   matchedSample: boolean;
   invoiceNo?: string;
   warning?: string;
+  direction?: "in" | "out";
 }
 
 export interface DraftLineItem {
