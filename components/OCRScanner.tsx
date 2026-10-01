@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatMoney } from "@/lib/format";
-import { extractReceipt, fileKind, OCR_STEPS } from "@/lib/ocr";
+import { extractReceipt, fileKind, MAX_RECEIPT_BYTES, OCR_STEPS } from "@/lib/ocr";
 import { quotesForDraft, type PriceQuote } from "@/lib/price-intel";
 import { draftFromOCR, validateDraft, type FieldErrors } from "@/lib/validate";
 import type { Expense, ExpenseDraft, OCRData } from "@/types/expense";
@@ -19,7 +19,6 @@ type Phase = "idle" | "processing" | "review" | "saved";
 type PreviewKind = "image" | "pdf";
 
 const FIELD_ORDER = ["vendor", "date", "amount", "lineItems", "notes"] as const;
-const MAX_BYTES = 10 * 1024 * 1024;
 
 export function OCRScanner() {
   const { addExpense, expenses, hydrated, saving } = useExpenses();
@@ -98,9 +97,9 @@ export function OCRScanner() {
       });
       return;
     }
-    if (file.size > MAX_BYTES) {
+    if (file.size > MAX_RECEIPT_BYTES) {
       toast.error("That file is too large", {
-        description: "Receipts need to be under 10 MB.",
+        description: "Receipts need to be under 8 MB.",
       });
       return;
     }

@@ -26,8 +26,8 @@ export function ResetPasswordForm() {
             setNotice("Open the reset link from your email in this browser.");
             return;
           }
-          if (password.length < 6) {
-            setNotice("Use a password of at least 6 characters.");
+          if (password.length < 8) {
+            setNotice("Use a password of at least 8 characters.");
             return;
           }
           if (password !== confirm) {

@@ -1,4 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
 import {
   CATEGORY_BURMESE,
   budgetLevel,
@@ -11,8 +10,9 @@ import {
   type CoachSnapshot,
 } from "@/lib/budget-coach";
 import { expensesInMonth } from "@/lib/expenses";
-import type { Expense } from "@/types/expense";
+import { CATEGORIES, type Expense } from "@/types/expense";
 import { formatMoney } from "@/lib/format";
+import { allowRequest, safeModel, userFromBearer } from "@/lib/api-guard";
 import { fetchRemoteLedger } from "@/lib/ledger-db";
 import { isSupabaseConfigured } from "@/lib/supabase";
 export const runtime = "nodejs";
@@ -61,8 +61,7 @@ async function askGemini(
   key: string,
   snapshot: CoachSnapshot,
 ): Promise<string> {
-  const model =
-    process.env.GEMINI_COACH_MODEL?.trim() || "gemini-3.5-flash-lite";
+  const model = safeModel(process.env.GEMINI_COACH_MODEL, "gemini-3.5-flash-lite");
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
@@ -109,40 +108,11 @@ async function askGemini(
   if (message) return message;
   throw new Error("empty coach reply");
 }
-/** * Read the Supabase session from the request and create a client * that uses that exact access token. * * Important: * The token must belong to the same Supabase project as * NEXT_PUBLIC_SUPABASE_URL. */ async function monthSnapshot(
-  request: Request,
-): Promise<CoachSnapshot> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (!url || !key) {
-    throw new Error("Supabase environment variables are missing.");
-  }
-  const authorization = request.headers.get("authorization")?.trim();
-  if (!authorization) {
-    throw new Error("Missing Supabase authorization token.");
-  }
-  const token = authorization.replace(/^Bearer\s+/i, "").trim();
-  if (!token) {
-    throw new Error("Missing Supabase access token.");
-  }
-  /** * Create a fresh client for this request. * * Do not use a global browser Supabase client here. * The request's access token is explicitly attached so * Supabase can identify the logged-in user. */ const client =
-    createClient(url, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-  /** * Verify that the JWT belongs to the Supabase project. * * This also gives us a clean error instead of letting a * mismatched/invalid JWT reach the database query. */ const {
-    data: { user },
-    error: userError,
-  } = await client.auth.getUser(token);
-  if (userError || !user) {
-    throw new Error(
-      userError?.message || "Invalid Supabase authentication token.",
-    );
-  }
-  const ledger = await fetchRemoteLedger(client);
-  /** * fetchRemoteLedger() uses the active user ID from the * browser-side ledger session in the normal app flow. * * For this server route, use the authenticated JWT user ID * directly by applying the user ID to the returned records. */ const userExpenses =
-    ledger.expenses.filter(() => true);
-  const month = expensesInMonth(userExpenses);
+async function monthSnapshot(request: Request): Promise<CoachSnapshot> {
+  const user = await userFromBearer(request);
+  if (!user) throw new Error("Sign in to open your ledger.");
+  const ledger = await fetchRemoteLedger(user.client, user.id);
+  const month = expensesInMonth(ledger.expenses);
   return buildCoachSnapshot(
     month,
     ledger.budget,
@@ -157,7 +127,7 @@ function snapshotFromBody(body: unknown): CoachSnapshot | null {
     budget?: unknown;
     categoryLimits?: unknown;
   };
-  if (!Array.isArray(row.expenses) || typeof row.budget !== "number") {
+  if (!Array.isArray(row.expenses) || typeof row.budget !== "number" || !Number.isFinite(row.budget) || row.budget < 0 || row.budget > 100_000_000) {
     return null;
   }
   const expenses = row.expenses
@@ -179,12 +149,9 @@ function snapshotFromBody(body: unknown): CoachSnapshot | null {
       ) {
         return [];
       }
-      if (
-        typeof entry.category !== "string" ||
-        typeof entry.date !== "string"
-      ) {
-        return [];
-      }
+      if (typeof entry.category !== "string" || typeof entry.date !== "string") return [];
+      if (!(CATEGORIES as readonly string[]).includes(entry.category)) return [];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.date)) return [];
       return [
         {
           id: "coach",
@@ -228,6 +195,10 @@ async function reply(snapshot: CoachSnapshot) {
 }
 export async function POST(request: Request) {
   try {
+    const declared = Number(request.headers.get("content-length") ?? 0);
+    if (declared > 200_000 || !allowRequest(request, "coach", 40, 60_000)) {
+      return Response.json({ message: coachInsight(buildCoachSnapshot([], 0)) });
+    }
     const snapshot = snapshotFromBody(await request.json().catch(() => null));
     if (!snapshot) {
       return Response.json({
@@ -241,15 +212,16 @@ export async function POST(request: Request) {
 }
 export async function GET(request: Request) {
   try {
+    if (!allowRequest(request, "coach", 40, 60_000)) {
+      return Response.json({ message: coachInsight(buildCoachSnapshot([], 0)) });
+    }
     if (!isSupabaseConfigured()) {
       return await reply(buildCoachSnapshot([], 0));
     }
     const snapshot = await monthSnapshot(request);
     return await reply(snapshot);
-  } catch (error) {
-    /** * Keep the endpoint from crashing the UI. * The frontend receives the local Burmese fallback. */ const message =
-      error instanceof Error ? error.message : "";
-    console.error("[coach] GET failed:", message);
+  } catch {
+    console.error("[coach] GET failed");
     return Response.json({ message: coachInsight(buildCoachSnapshot([], 0)) });
   }
 }

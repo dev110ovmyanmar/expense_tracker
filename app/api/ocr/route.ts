@@ -1,3 +1,5 @@
+import { allowRequest, safeModel } from "@/lib/api-guard";
+import { MAX_RECEIPT_BYTES } from "@/lib/ocr";
 import { VISION_SYSTEM_PROMPT, parseVoucher } from "@/lib/vision-receipt";
 
 export const runtime = "nodejs";
@@ -39,12 +41,12 @@ function visionProvider(): { name: "openai" | "gemini"; key: string; model: stri
     return {
       name: "gemini",
       key: gemini,
-      model: process.env.GEMINI_VISION_MODEL?.trim() || "gemini-3.5-flash-lite",
+      model: safeModel(process.env.GEMINI_VISION_MODEL, "gemini-3.5-flash-lite"),
     };
   }
   const openai = usable.find(isOpenAIKey);
   if (openai) {
-    return { name: "openai", key: openai, model: process.env.OPENAI_VISION_MODEL?.trim() || "gpt-4o-mini" };
+    return { name: "openai", key: openai, model: safeModel(process.env.OPENAI_VISION_MODEL, "gpt-4o-mini") };
   }
   if (keys.length > 0) return "rejected";
   return null;
@@ -69,14 +71,40 @@ async function providerError(response: Response): Promise<string> {
     if (typeof parsed === "object" && parsed !== null && "error" in parsed) {
       const error = parsed.error;
       if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
-        return error.message;
+        return scrubProviderText(error.message);
       }
-      if (typeof error === "string") return error;
+      if (typeof error === "string") return scrubProviderText(error);
     }
   } catch {
     // The provider returned plain text.
   }
-  return body.replace(/\s+/g, " ").slice(0, 240) || `Vision request failed (${response.status})`;
+  return scrubProviderText(body);
+}
+
+function scrubProviderText(value: string): string {
+  const text = value.replace(/\s+/g, " ").trim();
+  if (!text || /AIza|sk-|api[_ -]?key|bearer /i.test(text)) return "The vision service rejected this photo.";
+  return text.slice(0, 180);
+}
+
+function imageKind(bytes: Uint8Array): "image/jpeg" | "image/png" | "image/webp" | "image/gif" | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return "image/gif";
+  return null;
 }
 
 async function readOpenAI(file: File, key: string, model: string): Promise<unknown> {
@@ -175,11 +203,24 @@ async function readGemini(file: File, key: string, model: string): Promise<unkno
 }
 
 export async function POST(request: Request) {
+  if (!allowRequest(request, "ocr", 12, 60_000)) {
+    return Response.json({ voucher: null, error: "Too many scans. Wait a moment and try again." }, { status: 429 });
+  }
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > MAX_RECEIPT_BYTES + 65_536) {
+    return Response.json({ voucher: null, error: "That photo is too large." }, { status: 413 });
+  }
   const form = await request.formData();
   const file = form.get("file");
-  if (!(file instanceof File)) {
-    return Response.json({ voucher: null, error: "Upload a voucher image." }, { status: 400 });
+  if (!(file instanceof File) || file.size === 0 || file.size > MAX_RECEIPT_BYTES) {
+    return Response.json({ voucher: null, error: file instanceof File && file.size > MAX_RECEIPT_BYTES ? "That photo is too large." : "Upload a voucher image." }, { status: 400 });
   }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const kind = imageKind(bytes);
+  if (!kind) {
+    return Response.json({ voucher: null, error: "Upload a PNG, JPG, WEBP, or GIF." }, { status: 400 });
+  }
+  const checked = new File([bytes], "receipt", { type: kind });
   const provider = visionProvider();
   if (provider === "rejected") {
     return Response.json({ voucher: null, error: KEY_HELP }, { status: 503 });
@@ -196,8 +237,8 @@ export async function POST(request: Request) {
   try {
     const raw =
       provider.name === "openai"
-        ? await readOpenAI(file, provider.key, provider.model)
-        : await readGemini(file, provider.key, provider.model);
+        ? await readOpenAI(checked, provider.key, provider.model)
+        : await readGemini(checked, provider.key, provider.model);
     const voucher = parseVoucher(raw);
     if (!voucher) {
       return Response.json({ voucher: null, error: "The vision model did not return a voucher." });

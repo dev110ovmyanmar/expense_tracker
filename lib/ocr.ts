@@ -2,6 +2,8 @@ import { fallbackReceipt, extractPdfText, extractSvgText, parseReceiptText } fro
 import { parseVoucher, voucherToOCR } from "@/lib/vision-receipt";
 import { DEFAULT_CURRENCY, type LineItem, type OCRData } from "@/types/expense";
 
+export const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
+
 export const OCR_STEPS = [
   {
     title: "Uploading image",

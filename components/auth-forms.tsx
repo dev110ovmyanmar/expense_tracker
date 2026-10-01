@@ -44,8 +44,8 @@ export function AuthForms() {
       setNotice("Add a user name.");
       return;
     }
-    if (!email.trim() || password.length < 6) {
-      setNotice("Use an email and a password of at least 6 characters.");
+    if (!email.trim() || password.length < 6 || (mode === "sign-up" && password.length < 8)) {
+      setNotice(mode === "sign-up" ? "Use an email and a password of at least 8 characters." : "Use an email and a password of at least 6 characters.");
       return;
     }
     setBusy(true);

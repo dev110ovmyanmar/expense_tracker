@@ -112,12 +112,11 @@ function expenseToRow(expense: Expense, userId: string) {
   };
 }
 
-export async function fetchRemoteLedger(supabase = getSupabase()): Promise<RemoteLedger> {
-  const userId = ledgerOwnerId();
+export async function fetchRemoteLedger(supabase = getSupabase(), userId = ledgerOwnerId()): Promise<RemoteLedger> {
   const [expensesResult, budgetResult] = await Promise.all([
     supabase
       .from("expenses")
-      .select("*")
+      .select("id, item_name, shop_name, amount, category, type, date, line_items, metadata, created_at, updated_at")
       .eq("user_id", userId)
       .order("date", { ascending: false })
       .order("created_at", { ascending: false }),
