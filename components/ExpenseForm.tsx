@@ -71,8 +71,8 @@ export function ExpenseForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100svh-6.5rem-env(safe-area-inset-bottom))] max-w-[calc(100%-0.75rem)] flex-col gap-0 overflow-hidden overscroll-contain p-0 sm:max-h-[min(90svh,760px)] sm:max-w-2xl max-sm:top-3 max-sm:bottom-[calc(5.25rem+env(safe-area-inset-bottom))] max-sm:translate-y-0">
-        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+      <DialogContent className="flex max-h-[calc(100svh-6.5rem-env(safe-area-inset-bottom))] max-w-[calc(100%-0.75rem)] flex-col gap-0 overflow-hidden overscroll-none p-0 sm:max-h-[min(90svh,760px)] sm:max-w-2xl max-sm:top-3 max-sm:bottom-[calc(5.25rem+env(safe-area-inset-bottom))] max-sm:translate-y-0">
+        <form onSubmit={onSubmit} className="flex min-h-0 min-w-0 flex-1 flex-col">
           <DialogHeader className="shrink-0 px-4 pt-4 pr-12">
             <DialogTitle className="font-heading text-xl">
               {editing ? `Edit ${kind}` : income ? "Add income" : "Add expense"}
@@ -85,7 +85,7 @@ export function ExpenseForm({
                   : "Log a charge in kyat. It shows up on the overview immediately."}
             </DialogDescription>
           </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
+          <div data-aura-scroll className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-none px-3 py-4 sm:px-4">
             <ExpenseFields
               draft={draft}
               onChange={setDraft}

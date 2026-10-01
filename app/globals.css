@@ -253,8 +253,28 @@ input[type="datetime-local"] {
 
 html.aura-scroll-lock,
 html.aura-scroll-lock body {
-  overflow: hidden;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none;
+}
+
+html.aura-scroll-lock body {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+}
+
+[data-slot="dialog-content"],
+[data-aura-scroll] {
+  overflow-x: hidden;
   overscroll-behavior: none;
+}
+
+html.aura-scroll-lock [data-slot="dialog-content"],
+html.aura-scroll-lock [data-aura-scroll],
+html.aura-scroll-lock [data-slot="select-content"] {
+  touch-action: pan-y;
 }
 
 @keyframes aura-scan {

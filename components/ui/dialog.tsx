@@ -47,17 +47,81 @@ function DialogOverlay({
   )
 }
 
+let dialogLocks = 0
+let savedScrollY = 0
+
+function scrollPane(target: EventTarget | null): HTMLElement | null {
+  if (!(target instanceof Element)) return null
+  const marked = target.closest("[data-aura-scroll]")
+  if (marked instanceof HTMLElement) return marked
+  const content = target.closest("[data-slot='dialog-content']")
+  if (content instanceof HTMLElement && content.scrollHeight > content.clientHeight + 1) return content
+  return null
+}
+
+function lockPage() {
+  if (dialogLocks === 0) {
+    savedScrollY = window.scrollY
+    document.body.dataset.auraScrollY = String(savedScrollY)
+    document.body.style.top = `-${savedScrollY}px`
+    document.documentElement.classList.add("aura-scroll-lock")
+  }
+  dialogLocks += 1
+}
+
+function unlockPage() {
+  dialogLocks = Math.max(0, dialogLocks - 1)
+  if (dialogLocks > 0) return
+  const y = Number(document.body.dataset.auraScrollY || savedScrollY || 0)
+  document.documentElement.classList.remove("aura-scroll-lock")
+  document.body.style.top = ""
+  delete document.body.dataset.auraScrollY
+  window.scrollTo(0, y)
+}
+
 function useDialogScrollLock() {
   React.useEffect(() => {
-    const root = document.documentElement
-    root.classList.add("aura-scroll-lock")
+    let held = false
+    let lastY = 0
+    const remember = (event: TouchEvent) => {
+      lastY = event.touches[0]?.clientY ?? lastY
+    }
+    const holdStill = (event: TouchEvent) => {
+      const pane = scrollPane(event.target)
+      const y = event.touches[0]?.clientY ?? lastY
+      const pullingDown = y > lastY
+      lastY = y
+      if (!pane) {
+        event.preventDefault()
+        return
+      }
+      const atTop = pane.scrollTop <= 0
+      const atBottom = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 1
+      if ((atTop && pullingDown) || (atBottom && !pullingDown)) event.preventDefault()
+    }
+    const sync = () => {
+      const open = Boolean(document.querySelector("[data-slot='dialog-content']"))
+      if (open && !held) {
+        held = true
+        lockPage()
+        document.addEventListener("touchstart", remember, { passive: true })
+        document.addEventListener("touchmove", holdStill, { passive: false })
+      } else if (!open && held) {
+        held = false
+        document.removeEventListener("touchstart", remember)
+        document.removeEventListener("touchmove", holdStill)
+        unlockPage()
+      }
+    }
+    sync()
+    const observer = new MutationObserver(sync)
+    observer.observe(document.body, { childList: true, subtree: true })
     return () => {
-      const release = window.setInterval(() => {
-        if (document.querySelector("[data-slot='dialog-content']")) return
-        root.classList.remove("aura-scroll-lock")
-        window.clearInterval(release)
-      }, 50)
-      window.setTimeout(() => window.clearInterval(release), 1500)
+      observer.disconnect()
+      if (!held) return
+      document.removeEventListener("touchstart", remember)
+      document.removeEventListener("touchmove", holdStill)
+      unlockPage()
     }
   }, [])
 }

@@ -163,7 +163,7 @@ function RecordSheet({
 }) {
   return (
     <Dialog open={Boolean(expense)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="gap-0 overflow-y-auto p-0 sm:max-w-md max-sm:top-auto max-sm:right-0 max-sm:bottom-0 max-sm:left-0 max-sm:max-h-[88svh] max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-3xl max-sm:rounded-b-none max-sm:data-open:zoom-in-100 max-sm:data-open:slide-in-from-bottom-4">
+      <DialogContent data-aura-scroll className="touch-pan-y gap-0 overflow-x-hidden overflow-y-auto overscroll-none p-0 sm:max-w-md max-sm:top-auto max-sm:right-0 max-sm:bottom-0 max-sm:left-0 max-sm:max-h-[88svh] max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-3xl max-sm:rounded-b-none max-sm:data-open:zoom-in-100 max-sm:data-open:slide-in-from-bottom-4">
         {expense ? (
           <div className="px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5 sm:pt-5 sm:pb-5">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-muted sm:hidden" aria-hidden />

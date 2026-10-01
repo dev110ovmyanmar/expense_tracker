@@ -141,7 +141,7 @@ function BillDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-y-auto sm:max-h-[min(90svh,760px)] sm:max-w-md max-sm:top-3 max-sm:bottom-[calc(5.25rem+env(safe-area-inset-bottom))] max-sm:max-h-none max-sm:translate-y-0">
+      <DialogContent data-aura-scroll className="touch-pan-y overflow-x-hidden overflow-y-auto overscroll-none sm:max-h-[min(90svh,760px)] sm:max-w-md max-sm:top-3 max-sm:bottom-[calc(5.25rem+env(safe-area-inset-bottom))] max-sm:max-h-none max-sm:translate-y-0">
         <DialogHeader>
           <DialogTitle>{item ? "Edit bill" : "Add a fixed bill"}</DialogTitle>
           <DialogDescription>Log it when the date arrives, or let Aura add it for you.</DialogDescription>

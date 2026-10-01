@@ -102,7 +102,7 @@ export function ExpenseFields({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-w-0 flex-col gap-5">
       <SegmentedControl
         label="Entry type"
         value={draft.type}
@@ -112,8 +112,8 @@ export function ExpenseFields({
           { id: "income", label: "Income" },
         ]}
       />
-      <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
-        <div className="grid gap-1.5 sm:col-span-2">
+      <div className="grid min-w-0 gap-x-4 gap-y-5 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-1.5 sm:col-span-2">
           <Label htmlFor={`${idPrefix}-vendor`}>{income ? "Source" : "Vendor name"}</Label>
           <Input
             id={`${idPrefix}-vendor`}
@@ -126,7 +126,7 @@ export function ExpenseFields({
           />
           {errors.vendor ? <FieldError>{errors.vendor}</FieldError> : null}
         </div>
-        <div className="grid gap-1.5">
+        <div className="grid min-w-0 gap-1.5">
           <Label htmlFor={`${idPrefix}-date`}>Date</Label>
           <Input
             id={`${idPrefix}-date`}
@@ -138,7 +138,7 @@ export function ExpenseFields({
           />
           {errors.date ? <FieldError>{errors.date}</FieldError> : null}
         </div>
-        <div className="grid gap-1.5">
+        <div className="grid min-w-0 gap-1.5">
           <Label htmlFor={`${idPrefix}-category`}>Category</Label>
           <Select
             value={draft.category}
@@ -164,7 +164,7 @@ export function ExpenseFields({
           </Select>
           <p className="text-xs leading-4 text-muted-foreground">{CATEGORY_META[draft.category].description}</p>
         </div>
-        <div className="grid gap-1.5 sm:col-span-2">
+        <div className="grid min-w-0 gap-1.5 sm:col-span-2">
           <Label htmlFor={`${idPrefix}-amount`}>Amount</Label>
           <div className="relative">
             <Input
