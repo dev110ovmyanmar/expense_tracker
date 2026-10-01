@@ -30,7 +30,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { configured, signOut } = useAuth();
 
   return (
-    <div className="min-h-svh">
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden md:block md:h-auto md:min-h-svh md:overflow-visible">
       {saving ? (
         <div className="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 overflow-hidden bg-primary/20 md:left-64" role="status" aria-label="Saving">
           <div className="aura-savebar h-full w-1/3 bg-primary" />
@@ -64,8 +64,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="md:pl-64">
-        <header className="sticky top-0 z-30 border-b bg-background px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 md:hidden">
+      <div className="flex min-h-0 flex-1 flex-col md:block md:pl-64">
+        <header className="z-30 shrink-0 border-b bg-background px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 md:hidden">
           <div className="flex h-12 items-center justify-between gap-3">
             <Brand compact />
             <div className="flex shrink-0 items-center gap-1">
@@ -81,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="overflow-x-hidden px-4 pt-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-10">
+        <main data-app-main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-4 pt-4 pb-6 md:overflow-visible md:px-8 md:pt-8 md:pb-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 md:gap-5">
             <InstallHint />
             {storageWarning ? (
@@ -100,7 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </main>
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
+        <nav className="shrink-0 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
           <ul className="grid grid-cols-4">
             {NAV.map((item) => {
               const active = pathname === item.href;

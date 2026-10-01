@@ -239,6 +239,16 @@
     @apply font-sans;
     overflow-x: hidden;
   }
+  @media (max-width: 767px) {
+    html,
+    body {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+  }
   summary::-webkit-details-marker {
     display: none;
   }
@@ -281,6 +291,10 @@ html.aura-scroll-lock body {
   left: 0 !important;
   right: 0 !important;
   width: 100% !important;
+}
+
+html.aura-scroll-lock [data-app-main] {
+  overflow: hidden !important;
 }
 
 [data-slot="dialog-content"],
