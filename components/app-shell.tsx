@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { DailyReminderBanner, ReminderToggle } from "@/components/daily-reminder";
+import { InstallHint } from "@/components/install-hint";
 import { useExpenses } from "@/components/expense-provider";
 import { ThemePicker } from "@/components/theme-picker";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="overflow-x-hidden px-4 pt-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 md:gap-5">
+            <InstallHint />
             {storageWarning ? (
               <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {storageMessage ?? "The ledger could not be saved. Try again in a moment."}

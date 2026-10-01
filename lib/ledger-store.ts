@@ -10,6 +10,13 @@ import {
 } from "@/lib/ledger-db";
 import { deleteGoal, deleteRecurring, fetchPlanning, fetchSettings, goalFromInput, recurringFromInput, saveGoal, saveRecurring, saveSettings } from "@/lib/planning-db";
 import { advanceDate, scheduleCatchUp } from "@/lib/recurring";
+import {
+  isOfflineError,
+  offlineNow,
+  readDeviceLedger,
+  writeDeviceLedger,
+  type DeviceLedger,
+} from "@/lib/device-ledger";
 import { DEFAULT_BUDGET } from "@/lib/seed";
 import { getSupabase, isSupabaseConfigured, ledgerOwnerId } from "@/lib/supabase";
 import type { Category, Expense, ExpenseInput } from "@/types/expense";
@@ -52,11 +59,13 @@ const SERVER_SNAPSHOT: LedgerSnapshot = {
   storageMessage: null,
 };
 
-const MISSING =
-  "Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then run supabase/migrations/001_expenses.sql.";
-
 let snapshot: LedgerSnapshot = SERVER_SNAPSHOT;
 let started = false;
+let generation = 0;
+let scopeUserId: string | null = null;
+let scopeReady = false;
+let pendingSync = false;
+let syncedExpenseIds: string[] = [];
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -85,13 +94,144 @@ function displayName(user: { email?: string | null; user_metadata?: Record<strin
   return user.email?.split("@")[0]?.trim() || null;
 }
 
-function fail(message: string) {
-  publish({ ...snapshot, ready: true, saving: false, storageWarning: true, storageMessage: message });
+function openScope(userId: string | null) {
+  generation += 1;
+  scopeUserId = userId;
+  scopeReady = true;
+  return generation;
 }
 
-async function load(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
+function adoptDevice(stored: DeviceLedger | null) {
+  pendingSync = stored?.pending === true;
+  syncedExpenseIds = stored?.syncedExpenseIds ?? [];
+}
+
+function toDevice(next: LedgerSnapshot): DeviceLedger {
+  return {
+    version: 1,
+    expenses: next.expenses,
+    budget: next.budget,
+    categoryLimits: next.categoryLimits,
+    recurring: next.recurring,
+    goals: next.goals,
+    dailyBills: next.dailyBills,
+    dailyReminder: next.dailyReminder,
+    lastReminded: next.lastReminded,
+    userName: next.userName,
+    pending: pendingSync,
+    syncedExpenseIds,
+  };
+}
+
+function remember(next: LedgerSnapshot) {
+  const saved = { ...next, saving: false, storageWarning: false, storageMessage: null };
+  if (scopeReady && typeof window !== "undefined") {
+    try {
+      writeDeviceLedger(scopeUserId, toDevice(saved));
+    } catch {
+      publish({
+        ...saved,
+        storageWarning: true,
+        storageMessage: "This phone is out of space, so Aura could not store the latest change.",
+      });
+      return;
+    }
+  }
+  publish(saved);
+}
+
+function snapshotFromDevice(
+  stored: DeviceLedger | null,
+  user: { email?: string | null; user_metadata?: Record<string, unknown> } | null,
+): LedgerSnapshot {
+  adoptDevice(stored);
+  return {
+    expenses: sortExpenses(stored?.expenses ?? []),
+    budget: stored?.budget ?? DEFAULT_BUDGET,
+    categoryLimits: stored?.categoryLimits ?? {},
+    recurring: stored?.recurring ?? [],
+    goals: stored?.goals ?? [],
+    dailyBills: stored?.dailyBills ?? [],
+    planningMessage: null,
+    userEmail: user?.email ?? null,
+    userName: stored?.userName ?? displayName(user),
+    dailyReminder: stored?.dailyReminder ?? false,
+    lastReminded: stored?.lastReminded ?? null,
+    ready: true,
+    saving: false,
+    storageWarning: false,
+    storageMessage: null,
+  };
+}
+
+function applyAutoLogLocal(items: RecurringItem[]) {
+  const today = todayISO();
+  const created: Expense[] = [];
+  const recurring: RecurringItem[] = [];
+  for (const item of items) {
+    const due = item.active && item.autoLog ? scheduleCatchUp(item.nextDue, item.frequency, today) : { dates: [], nextDue: item.nextDue };
+    if (due.dates.length === 0) {
+      recurring.push(item);
+      continue;
+    }
+    created.push(...chargesFor(item, due.dates));
+    recurring.push({ ...item, nextDue: due.nextDue, updatedAt: new Date().toISOString() });
+  }
+  return { expenses: created, recurring };
+}
+
+function openLocalLedger() {
+  const ticket = openScope(null);
+  const stored = readDeviceLedger(null);
+  const base = snapshotFromDevice(stored, null);
+  const logged = applyAutoLogLocal(base.recurring);
+  if (ticket !== generation) return;
+  const next = {
+    ...base,
+    expenses: sortExpenses([...logged.expenses, ...base.expenses]),
+    recurring: logged.recurring,
+  };
+  publish(next);
+  if (logged.expenses.length > 0) {
+    try {
+      writeDeviceLedger(null, toDevice(next));
+    } catch {
+      publish({
+        ...next,
+        storageWarning: true,
+        storageMessage: "This phone is out of space, so Aura could not store the latest change.",
+      });
+    }
+  }
+}
+
+async function pushPending(serverExpenses: Expense[], budget: number, categoryLimits: CategoryLimits) {
+  if (!pendingSync) return { expenses: serverExpenses, budget, categoryLimits };
+  const serverById = new Map(serverExpenses.map((expense) => [expense.id, expense]));
+  const localIds = new Set(snapshot.expenses.map((expense) => expense.id));
+  const upserts = snapshot.expenses.filter((expense) => {
+    const remote = serverById.get(expense.id);
+    return !remote || expense.updatedAt > remote.updatedAt;
+  });
+  const removals = syncedExpenseIds.filter((id) => !localIds.has(id) && serverById.has(id));
+  if (upserts.length > 0) await upsertExpenses(upserts);
+  for (const id of removals) await deleteRemoteExpense(id);
+  const limitsDiffer = JSON.stringify(snapshot.categoryLimits) !== JSON.stringify(categoryLimits);
+  const budgetDiffers = snapshot.budget !== budget;
+  if (budgetDiffers || limitsDiffer) await saveRemoteBudget(snapshot.budget, snapshot.categoryLimits);
+  const merged = new Map(serverExpenses.map((expense) => [expense.id, expense]));
+  for (const id of removals) merged.delete(id);
+  for (const expense of upserts) merged.set(expense.id, expense);
+  return {
+    expenses: sortExpenses([...merged.values()]),
+    budget: budgetDiffers || limitsDiffer ? snapshot.budget : budget,
+    categoryLimits: budgetDiffers || limitsDiffer ? snapshot.categoryLimits : categoryLimits,
+  };
+}
+
+async function load(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }, ticket: number) {
   if (!isSupabaseConfigured()) {
-    fail(MISSING);
+    openLocalLedger();
     return;
   }
   const userName = displayName(user);
@@ -102,11 +242,18 @@ async function load(user: { id: string; email?: string | null; user_metadata?: R
       fetchSettings(),
       fetchDailyBills(),
     ]);
+    if (ticket !== generation) return;
+    const reconciled = await pushPending(ledger.expenses, ledger.budget, ledger.categoryLimits);
+    if (ticket !== generation) return;
     const logged = planning.message ? { expenses: [], recurring: planning.recurring } : await applyAutoLog(planning.recurring);
-    publish({
-      expenses: sortExpenses([...logged.expenses, ...ledger.expenses]),
-      budget: ledger.budget,
-      categoryLimits: ledger.categoryLimits,
+    if (ticket !== generation) return;
+    const expenses = sortExpenses([...logged.expenses, ...reconciled.expenses]);
+    pendingSync = false;
+    syncedExpenseIds = expenses.map((expense) => expense.id);
+    const next: LedgerSnapshot = {
+      expenses,
+      budget: reconciled.budget,
+      categoryLimits: reconciled.categoryLimits,
       recurring: logged.recurring,
       goals: planning.goals,
       dailyBills,
@@ -119,8 +266,31 @@ async function load(user: { id: string; email?: string | null; user_metadata?: R
       saving: false,
       storageWarning: false,
       storageMessage: null,
-    });
+    };
+    publish(next);
+    try {
+      writeDeviceLedger(user.id, toDevice(next));
+    } catch {
+      publish({
+        ...next,
+        storageWarning: true,
+        storageMessage: "This phone is out of space, so Aura could not store the latest change.",
+      });
+    }
   } catch (error) {
+    if (ticket !== generation) return;
+    if (isOfflineError(error)) {
+      publish({
+        ...snapshot,
+        ready: true,
+        saving: false,
+        storageWarning: false,
+        storageMessage: null,
+        userEmail: user.email ?? snapshot.userEmail,
+        userName: userName ?? snapshot.userName,
+      });
+      return;
+    }
     const message = error instanceof Error ? error.message : "The ledger could not be loaded.";
     publish({
       ...snapshot,
@@ -135,22 +305,36 @@ async function load(user: { id: string; email?: string | null; user_metadata?: R
 }
 
 export function syncLedgerSession(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null) {
-  if (!isSupabaseConfigured()) return;
+  if (typeof window === "undefined") return;
+  if (!isSupabaseConfigured()) {
+    if (!started) {
+      started = true;
+      openLocalLedger();
+    }
+    return;
+  }
   if (!user) {
+    generation += 1;
+    scopeUserId = null;
+    scopeReady = false;
+    pendingSync = false;
+    syncedExpenseIds = [];
     publish({ ...SERVER_SNAPSHOT, ready: true });
     return;
   }
-  void load(user);
+  const ticket = openScope(user.id);
+  const cached = readDeviceLedger(user.id);
+  publish(snapshotFromDevice(cached, user));
+  void load(user, ticket);
 }
 
 function start() {
   if (started || typeof window === "undefined") return;
   started = true;
-  if (!isSupabaseConfigured()) fail(MISSING);
+  if (!isSupabaseConfigured()) openLocalLedger();
 }
 
 function requireReady() {
-  if (!isSupabaseConfigured()) throw new Error(MISSING);
   if (!snapshot.ready) throw new Error(snapshot.storageMessage || "The ledger is still loading.");
 }
 
@@ -173,11 +357,28 @@ export function getServerLedgerSnapshot(): LedgerSnapshot {
 async function commitChange(next: LedgerSnapshot, work: () => Promise<void>, fallback: string) {
   requireReady();
   const previous = snapshot;
+  const previousPending = pendingSync;
+  const previousSynced = syncedExpenseIds;
   publish({ ...next, saving: true, storageWarning: false, storageMessage: null });
+  const skipRemote = !isSupabaseConfigured() || offlineNow();
+  if (skipRemote) {
+    if (isSupabaseConfigured()) pendingSync = true;
+    remember(snapshot);
+    return;
+  }
   try {
     await work();
-    publish({ ...snapshot, saving: false, storageWarning: false, storageMessage: null });
+    pendingSync = false;
+    syncedExpenseIds = snapshot.expenses.map((expense) => expense.id);
+    remember(snapshot);
   } catch (error) {
+    if (isOfflineError(error)) {
+      pendingSync = true;
+      remember(snapshot);
+      return;
+    }
+    pendingSync = previousPending;
+    syncedExpenseIds = previousSynced;
     const message = error instanceof Error ? error.message : fallback;
     publish({ ...previous, saving: false, storageWarning: true, storageMessage: message });
     throw new Error(message);
@@ -453,11 +654,17 @@ export async function setDailyReminder(enabled: boolean) {
 
 export async function markReminded(day: string) {
   const next = { dailyReminder: snapshot.dailyReminder, lastReminded: day };
+  if (!isSupabaseConfigured() || offlineNow()) {
+    if (isSupabaseConfigured()) pendingSync = true;
+    remember({ ...snapshot, lastReminded: day });
+    return;
+  }
   try {
     await saveSettings(next);
-    publish({ ...snapshot, lastReminded: day });
-  } catch {
-    publish({ ...snapshot, lastReminded: day });
+    remember({ ...snapshot, lastReminded: day });
+  } catch (error) {
+    if (isOfflineError(error)) pendingSync = true;
+    remember({ ...snapshot, lastReminded: day });
   }
 }
 
@@ -483,6 +690,11 @@ export async function updateDisplayName(name: string) {
   if (trimmed.length > 40) throw new Error("Keep the user name under 40 characters.");
   const previous = snapshot.userName;
   publish({ ...snapshot, userName: trimmed, saving: true, storageWarning: false, storageMessage: null });
+  if (!isSupabaseConfigured() || offlineNow()) {
+    if (isSupabaseConfigured()) pendingSync = true;
+    remember({ ...snapshot, userName: trimmed });
+    return;
+  }
   try {
     const supabase = getSupabase();
     const { error } = await supabase.auth.updateUser({ data: { full_name: trimmed, user_name: trimmed } });
@@ -497,8 +709,13 @@ export async function updateDisplayName(name: string) {
     if (owned.error && /user_id|schema cache|column/i.test(owned.error.message)) {
       await supabase.from("profiles").update({ full_name: trimmed, updated_at: updatedAt }).eq("id", userId);
     }
-    publish({ ...snapshot, userName: trimmed, saving: false });
+    remember({ ...snapshot, userName: trimmed });
   } catch (error) {
+    if (isOfflineError(error)) {
+      pendingSync = true;
+      remember({ ...snapshot, userName: trimmed });
+      return;
+    }
     const message = error instanceof Error ? error.message : "The name could not be saved.";
     publish({ ...snapshot, userName: previous, saving: false, storageWarning: true, storageMessage: message });
     throw new Error(message);

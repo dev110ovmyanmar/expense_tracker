@@ -2,7 +2,11 @@
 
 A daily personal expense ledger. Track spending against a monthly budget, filter the full ledger, and scan a receipt into an editable preview before it is saved.
 
-Expenses and the budget are stored in Supabase. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Run `supabase/migrations/001_expenses.sql` on a new project. Then run `004_recurring_and_goals.sql`, `005_user_auth.sql`, `006_category_budgets.sql`, `007_daily_bills.sql`, `008_daily_recurring.sql`, and `009_profiles.sql`. Finish with `supabase/migrations/011_own_ledger.sql` so each signed-in account can only read and write its own rows. Sign in at `/login`. Add `/reset-password` to the Supabase redirect URLs. A daily reminder can prompt you to log expenses. The app does not keep a ledger in the browser.
+Expenses and the budget are stored on the phone. With `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, Aura also syncs that ledger to Supabase. Run `supabase/migrations/001_expenses.sql` on a new project. Then run `004_recurring_and_goals.sql`, `005_user_auth.sql`, `006_category_budgets.sql`, `007_daily_bills.sql`, `008_daily_recurring.sql`, and `009_profiles.sql`. Finish with `supabase/migrations/011_own_ledger.sql` so each signed-in account can only read and write its own rows. Sign in at `/login`. Add `/reset-password` to the Supabase redirect URLs. A daily reminder can prompt you to log expenses.
+
+## iPhone
+
+Open Aura in Safari, tap Share, then Add to Home Screen. The icon opens Aura full screen, and the ledger still loads with no connection. Expenses and the budget added offline are kept on the phone and sent to Supabase the next time a load succeeds. Receipt scanning and the coach need a network.
 
 ## Run it
 

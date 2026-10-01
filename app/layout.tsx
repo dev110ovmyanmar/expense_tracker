@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import { AuthGuard } from "@/components/auth-guard";
 import { ExpenseProvider } from "@/components/expense-provider";
+import { PwaRegister } from "@/components/pwa-register";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/context/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
@@ -27,6 +28,7 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover" as const,
+  themeColor: "#10241c",
 };
 
 export const metadata: Metadata = {
@@ -36,6 +38,15 @@ export const metadata: Metadata = {
   },
   description:
     "A daily personal expense ledger with a receipt scanner you review before anything is saved.",
+  applicationName: "Aura",
+  appleWebApp: {
+    capable: true,
+    title: "Aura",
+    statusBarStyle: "black-translucent",
+  },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -55,6 +66,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <AuthProvider>
             <ExpenseProvider>
               <AuthGuard>{children}</AuthGuard>
+              <PwaRegister />
               <Toaster />
             </ExpenseProvider>
           </AuthProvider>
