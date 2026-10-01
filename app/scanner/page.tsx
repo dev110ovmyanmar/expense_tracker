@@ -12,7 +12,7 @@ export default function ScannerPage() {
       <PageHeader
         eyebrow="Receipt scanner"
         title="Read a voucher, then confirm it"
-        description="Photograph a shop slip or a KBZPay e-receipt. A plus amount is income. A minus amount is an expense. You can still switch the Income tab before saving."
+        description="Photograph a shop slip or a KBZPay e-receipt. You can switch the Income tab before saving."
       />
       <OCRScanner />
     </div>

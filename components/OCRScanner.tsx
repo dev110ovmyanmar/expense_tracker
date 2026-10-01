@@ -357,7 +357,7 @@ export function OCRScanner() {
           </span>
           <h2 className="mt-4 font-heading text-2xl tracking-tight">Drop a receipt or voucher</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-            Shop slips and KBZPay e-receipts are read here. A plus amount opens as income, and a minus amount opens as an expense. Switch the Income tab if you need to.
+            Shop slips and KBZPay e-receipts are read here. Switch the Income tab if you need to.
           </p>
           <Button asChild className="mt-5 h-11 w-full sm:w-auto">
             <label htmlFor="receipt-upload">
