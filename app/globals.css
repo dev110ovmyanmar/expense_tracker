@@ -247,8 +247,26 @@
 input[type="date"],
 input[type="time"],
 input[type="datetime-local"] {
+  display: block;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
+  box-sizing: border-box;
+}
+
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
 }
 
 html.aura-scroll-lock,

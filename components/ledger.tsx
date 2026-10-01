@@ -8,6 +8,7 @@ import { useExpenses } from "@/components/expense-provider";
 import { PageHeader } from "@/components/page-header";
 import { TransactionList } from "@/components/transaction-list";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
@@ -54,7 +55,7 @@ export function Ledger() {
         actions={<AddExpenseButton className="h-10" />}
       />
 
-      <div className="grid min-w-0 gap-3 rounded-xl bg-card p-3 shadow-[0_10px_30px_-18px_oklch(0_0_0/0.55)] ring-1 ring-foreground/10 sm:p-4 lg:grid-cols-[minmax(0,1fr)_180px_minmax(0,160px)_minmax(0,160px)]">
+      <div className="grid w-full min-w-0 max-w-full gap-3 overflow-x-clip rounded-xl bg-card p-3 shadow-[0_10px_30px_-18px_oklch(0_0_0/0.55)] ring-1 ring-foreground/10 sm:p-4 lg:grid-cols-[minmax(0,1fr)_180px_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="grid gap-2">
           <Label htmlFor="ledger-search">Search</Label>
           <div className="relative">
@@ -90,26 +91,14 @@ export function Ledger() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row lg:contents">
-          <div className="grid min-w-0 flex-1 gap-2">
+        <div className="grid min-w-0 max-w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:contents">
+          <div className="grid min-w-0 max-w-full gap-2">
             <Label htmlFor="ledger-from">From</Label>
-            <Input
-              id="ledger-from"
-              type="date"
-              value={from}
-              onChange={(event) => setFrom(event.target.value)}
-              className="h-11 w-full min-w-0"
-            />
+            <DateField id="ledger-from" value={from} onChange={setFrom} />
           </div>
-          <div className="grid min-w-0 flex-1 gap-2">
+          <div className="grid min-w-0 max-w-full gap-2">
             <Label htmlFor="ledger-to">To</Label>
-            <Input
-              id="ledger-to"
-              type="date"
-              value={to}
-              onChange={(event) => setTo(event.target.value)}
-              className="h-11 w-full min-w-0"
-            />
+            <DateField id="ledger-to" value={to} onChange={setTo} />
           </div>
         </div>
       </div>
