@@ -47,6 +47,21 @@ function DialogOverlay({
   )
 }
 
+function useDialogScrollLock() {
+  React.useEffect(() => {
+    const root = document.documentElement
+    root.classList.add("aura-scroll-lock")
+    return () => {
+      const release = window.setInterval(() => {
+        if (document.querySelector("[data-slot='dialog-content']")) return
+        root.classList.remove("aura-scroll-lock")
+        window.clearInterval(release)
+      }, 50)
+      window.setTimeout(() => window.clearInterval(release), 1500)
+    }
+  }, [])
+}
+
 function DialogContent({
   className,
   children,
@@ -55,6 +70,7 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  useDialogScrollLock()
   return (
     <DialogPortal>
       <DialogOverlay />

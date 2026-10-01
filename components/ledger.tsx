@@ -54,7 +54,7 @@ export function Ledger() {
         actions={<AddExpenseButton className="h-10" />}
       />
 
-      <div className="grid gap-3 rounded-xl bg-card p-3 shadow-[0_10px_30px_-18px_oklch(0_0_0/0.55)] ring-1 ring-foreground/10 sm:p-4 lg:grid-cols-[1fr_180px_160px_160px]">
+      <div className="grid min-w-0 gap-3 rounded-xl bg-card p-3 shadow-[0_10px_30px_-18px_oklch(0_0_0/0.55)] ring-1 ring-foreground/10 sm:p-4 lg:grid-cols-[minmax(0,1fr)_180px_minmax(0,160px)_minmax(0,160px)]">
         <div className="grid gap-2">
           <Label htmlFor="ledger-search">Search</Label>
           <div className="relative">
@@ -90,25 +90,25 @@ export function Ledger() {
             </SelectContent>
           </Select>
         </div>
-        <div className="grid grid-cols-2 gap-3 lg:contents">
-          <div className="grid gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row lg:contents">
+          <div className="grid min-w-0 flex-1 gap-2">
             <Label htmlFor="ledger-from">From</Label>
             <Input
               id="ledger-from"
               type="date"
               value={from}
               onChange={(event) => setFrom(event.target.value)}
-              className="h-11"
+              className="h-11 w-full min-w-0"
             />
           </div>
-          <div className="grid gap-2">
+          <div className="grid min-w-0 flex-1 gap-2">
             <Label htmlFor="ledger-to">To</Label>
             <Input
               id="ledger-to"
               type="date"
               value={to}
               onChange={(event) => setTo(event.target.value)}
-              className="h-11"
+              className="h-11 w-full min-w-0"
             />
           </div>
         </div>

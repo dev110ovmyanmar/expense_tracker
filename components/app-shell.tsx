@@ -80,7 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="overflow-x-hidden px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-10">
+        <main className="overflow-x-hidden px-4 pt-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:px-8 md:pt-8 md:pb-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 md:gap-5">
             {storageWarning ? (
               <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
