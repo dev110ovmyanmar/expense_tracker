@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, Plus } from "lucide-react";
+import { Banknote, Plus, X } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { ExpenseFields } from "@/components/expense-fields";
@@ -8,6 +8,7 @@ import { useExpenses } from "@/components/expense-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -71,21 +72,34 @@ export function ExpenseForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100svh-6.5rem-env(safe-area-inset-bottom))] max-w-[calc(100%-0.75rem)] flex-col gap-0 overflow-hidden overscroll-none p-0 sm:max-h-[min(90svh,760px)] sm:max-w-2xl max-sm:top-3 max-sm:bottom-[calc(5.25rem+env(safe-area-inset-bottom))] max-sm:translate-y-0">
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="max-sm:hidden"
+        className="inset-0 flex h-dvh max-h-none w-full max-w-none translate-none flex-col gap-0 overflow-hidden overscroll-none rounded-none bg-background p-0 shadow-none ring-0 data-open:zoom-in-100 data-open:slide-in-from-bottom data-closed:zoom-out-100 data-closed:slide-out-to-bottom sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-auto sm:max-h-[min(90svh,760px)] sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:bg-popover sm:shadow-[0_24px_60px_-24px_oklch(0_0_0/0.65)] sm:ring-1 sm:data-open:zoom-in-95 sm:data-closed:zoom-out-95"
+      >
         <form onSubmit={onSubmit} className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <DialogHeader className="shrink-0 px-4 pt-4 pr-12">
-            <DialogTitle className="font-heading text-xl">
-              {editing ? `Edit ${kind}` : income ? "Add income" : "Add expense"}
-            </DialogTitle>
-            <DialogDescription>
-              {editing
-                ? "Update the entry. Scanned receipts keep their scan history."
-                : income
-                  ? "Log pay or other income in kyat. It raises this month's balance."
-                  : "Log a charge in kyat. It shows up on the overview immediately."}
-            </DialogDescription>
+          <DialogHeader className="shrink-0 border-b px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:border-0 sm:px-5 sm:pt-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <DialogTitle className="font-heading text-2xl sm:text-xl">
+                  {editing ? `Edit ${kind}` : income ? "Add income" : "Add expense"}
+                </DialogTitle>
+                <DialogDescription className="mt-1">
+                  {editing
+                    ? "Update the entry. Scanned receipts keep their scan history."
+                    : income
+                      ? "Log pay or other income in kyat. It raises this month's balance."
+                      : "Log a charge in kyat. It shows up on the overview immediately."}
+                </DialogDescription>
+              </div>
+              <DialogClose asChild>
+                <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Close">
+                  <X />
+                </Button>
+              </DialogClose>
+            </div>
           </DialogHeader>
-          <div data-aura-scroll className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-none px-3 py-4 sm:px-4">
+          <div data-aura-scroll className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-none px-4 py-5 sm:px-5">
             <ExpenseFields
               draft={draft}
               onChange={setDraft}
@@ -93,8 +107,8 @@ export function ExpenseForm({
               idPrefix="manual"
             />
           </div>
-          <DialogFooter className="mx-0 mb-0 shrink-0">
-            <Button type="button" variant="ghost" className="h-11 w-full text-muted-foreground sm:w-auto" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="mx-0 mb-0 shrink-0 rounded-none border-t bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:rounded-b-xl sm:bg-muted/50 sm:pb-4">
+            <Button type="button" variant="ghost" className="hidden h-11 text-muted-foreground sm:inline-flex" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" className="h-12 w-full rounded-xl px-4 text-base sm:h-11 sm:w-auto" disabled={saving}>
