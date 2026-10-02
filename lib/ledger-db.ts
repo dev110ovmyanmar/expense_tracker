@@ -1,3 +1,4 @@
+import { explainAuthError, isFutureJwtError } from "@/lib/auth-time";
 import { saveReceiptItems } from "@/lib/price-intel";
 import { DEFAULT_BUDGET } from "@/lib/seed";
 import { getSupabase, ledgerOwnerId } from "@/lib/supabase";
@@ -82,6 +83,7 @@ const LIMITS_MISSING =
   "Run supabase/migrations/006_category_budgets.sql in the Supabase SQL editor, then reload.";
 
 function friendlyError(message: string): string {
+  if (isFutureJwtError(message)) return explainAuthError(message);
   if (/category_limits/i.test(message)) return LIMITS_MISSING;
   if (/anonymous sign-ins are disabled/i.test(message)) return "Sign in to open your ledger.";
   if (/violates foreign key/i.test(message)) return OWN_LEDGER;

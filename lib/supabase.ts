@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { AUTH_STORAGE_KEY, authFetch } from "@/lib/auth-time";
 
 let client: SupabaseClient | null = null;
 let activeUserId: string | null = null;
@@ -27,13 +28,15 @@ export function getSupabase(): SupabaseClient {
   }
   if (!client) {
     client = createClient(url, key, {
+      global: { fetch: authFetch },
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
         flowType: "pkce",
         storage: window.localStorage,
-        storageKey: "aura-auth",
+        storageKey: AUTH_STORAGE_KEY,
+        lock: async (_name, _acquireTimeout, fn) => fn(),
       },
     });
   }

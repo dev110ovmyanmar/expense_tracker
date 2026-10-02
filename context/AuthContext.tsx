@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { explainAuthError, readStoredSession } from "@/lib/auth-time";
 import { seedProfile } from "@/lib/profiles";
 import { syncLedgerSession } from "@/lib/ledger-store";
 import { getSupabase, isSupabaseConfigured, setActiveUser } from "@/lib/supabase";
@@ -41,38 +42,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     const supabase = getSupabase();
-    let settled = false;
     const apply = (next: Session | null) => {
-      settled = true;
       setSession(next);
       setUser(next?.user ?? null);
       setActiveUser(next?.user?.id ?? null);
       syncLedgerSession(next?.user ? accountUser(next.user) : null);
       setLoading(false);
     };
+    const stored = readStoredSession();
+    if (stored) {
+      const cached = stored.user as User;
+      setUser(cached);
+      setActiveUser(cached.id);
+      syncLedgerSession(accountUser(cached));
+      setLoading(false);
+    }
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       window.setTimeout(() => apply(next), 0);
     });
-    void (async () => {
-      const { data: stored } = await supabase.auth.getSession();
-      if (settled) return;
-      if (!stored.session) {
-        apply(null);
-        return;
-      }
-      const { data: checked, error } = await supabase.auth.getUser();
-      if (settled) return;
-      if (checked.user?.id === stored.session.user.id) {
-        apply(stored.session);
-        return;
-      }
-      if (error && /network|fetch|failed/i.test(error.message)) {
-        apply(stored.session);
-        return;
-      }
-      apply(null);
-    })();
-    return () => data.subscription.unsubscribe();
+    const timeout = window.setTimeout(() => setLoading(false), 1200);
+    return () => {
+      window.clearTimeout(timeout);
+      data.subscription.unsubscribe();
+    };
   }, [configured]);
 
   const value = useMemo<AuthContextValue>(() => ({
@@ -82,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     configured,
     async signIn(email, password) {
       const { data, error } = await getSupabase().auth.signInWithPassword({ email: email.trim(), password });
-      if (error) return error.message;
+      if (error) return explainAuthError(error.message);
       if (!data.session || !data.user) return "Confirm your email, then sign in.";
       const profileError = await seedProfile(accountUser(data.user));
       return profileError;
@@ -97,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           emailRedirectTo: `${origin}/`,
         },
       });
-      if (error) return error.message;
+      if (error) return explainAuthError(error.message);
       const already = !data.session && Array.isArray(data.user?.identities) && data.user.identities.length === 0;
       if (already) return "This email already has an account. Sign in instead.";
       if (!data.user) return "The account could not be created.";
